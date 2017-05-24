@@ -33,6 +33,7 @@
     <ClInclude Include="include\particle_system.h" />
     <ClInclude Include="include\pbf_solver.h" />
     <ClInclude Include="include\pbf_solver_base.h" />
+    <ClInclude Include="include\pbf_solver_gpu.h" />
     <ClInclude Include="include\point_drawer.h" />
     <ClInclude Include="include\renderer.h" />
     <ClInclude Include="include\shader_wrapper.h" />
@@ -54,6 +55,9 @@
     <ClCompile Include="src\renderer.cpp" />
     <ClCompile Include="src\shader_wrapper.cpp" />
     <ClCompile Include="src\utils.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="src\pbf_solver_gpu.cu" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A0FAD442-3DDF-4C02-BDE6-C47D8D4FF0DB}</ProjectGuid>

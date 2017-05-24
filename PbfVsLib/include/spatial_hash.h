@@ -175,9 +175,9 @@ namespace pbf
 		cell_t ComputeCell_(const point_t& pos) const
 		{
 			cell_t result;
-			result[0] = (cell_comp_t)pos[0] * cell_size_recpr_;
-			result[1] = (cell_comp_t)pos[1] * cell_size_recpr_;
-			result[2] = (cell_comp_t)pos[2] * cell_size_recpr_;
+			result[0] = (cell_comp_t)(pos[0] * cell_size_recpr_);
+			result[1] = (cell_comp_t)(pos[1] * cell_size_recpr_);
+			result[2] = (cell_comp_t)(pos[2] * cell_size_recpr_);
 			return result;
 		};
 
