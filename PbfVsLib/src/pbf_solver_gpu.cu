@@ -14,6 +14,7 @@ namespace impl_ {
 	// - active cell: a cell that contains at least one particle.
 	//
 	// Example: a particle system of 8 particles, a cell grid of 5 cells.
+	// We will illustrate the necessary arrays for updating the cell grid.
 	//
 	// | 0 | 1 | 2 | 3 | 4 |  cell index 
 	// cell_num_ptcs
@@ -30,22 +31,52 @@ namespace impl_ {
 	// cell_to_active_cell_indices
 	//   0   1   1   2   3
 	// - size: #cells
-	// - a prefix scan of cell_is_active_flags
+	// - a prefix scan of |cell_is_active_flags|
 	//
 	// active_cell_num_ptcs
 	//   3   1   4
 	// - size: #active cells
-	// - a compact of cell_num_ptcs accoording to cell_to_active_cell_indices
+	// - a compact of |cell_num_ptcs| accoording to |cell_to_active_cell_indices|
 	// - sum of this array is the total number of particles
 	//
-	// active_cell_begins
+	// ptc_begins_in_active_cell 
 	//   0   3   4
 	// - size: #active cells
-	// - beginning index of each active cell
-	// - a prefix scan of active_cell_num_ptcs
+	// - beginning index of the particle in each (active) cell in 
+	//   |cell_ptc_indices|
+	// - a prefix scan of |active_cell_num_ptcs|
 	//
-	// ptc_offsets_within_active_cell
+	// cell_ptc_indices
+	// - size: #ptcs
+	// - each slot stores a particle index in the particle system. these particle
+	//   indices are arranged in a way that particles within the same grid cell
+	//   are continuously stored inside |cell_ptc_indices|.
+	//
+	// ptc_offsets_within_cell
 	// - size: #particles
+	// - for any given particle index, |p_i|, we can get its position, |pos_i|,
+	//   and its cell, |cell_i|. Then:
+	//	 // the active cell index of |cell_i| in which |ptc_i| lives
+	//	 ac_idx = cell_to_active_cell_indices[cell_i];
+	//   // the beginning index of the particles within |cell_i|
+	//	 // in |cell_ptc_indices|
+	//   ptc_begin_idx = ptc_begins_in_active_cell[ac_index];
+	//   p_i' = ptc_begin_idx + ptc_offset_within_cell[p_i]; 
+	//   assert(p_i == p_i');
+	//
+	// Find neighbors for each particle:
+	// ptc_num_neighbors
+	// - size: #particles
+	// - stores the number of neighbor particles for each particle
+	//
+	// ptc_neighbor_begins
+	// - size: #particles
+	// - ~[p_i] stores the beginning index of particle |p_i|'s neighbors
+	//   in |ptc_neighbor_indices|
+	//
+	// ptc_neighbor_indices
+	// - size: sum of |ptc_num_neighbors| 
+	
 	__device__ int3 GetCell(float3 pos, float cell_sz) {
 		const float cell_sz_recpr = 1.0f / cell_sz;
 		int cx = (int)(pos.x * cell_sz_recpr);
