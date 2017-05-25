@@ -70,7 +70,7 @@ namespace impl_ {
 	//   // the beginning index of the particles within |cell_i|
 	//	 // in |cell_ptc_indices|
 	//   ptc_begin_idx = ptc_begins_in_active_cell[ac_index];
-	//   p_i' = ptc_begin_idx + ptc_offset_within_cell[p_i]; 
+	//   p_i' = cell_ptc_indices[ptc_begin_idx + ptc_offset_within_cell[p_i]]; 
 	//   assert(p_i == p_i');
 	//
 	// Find neighbors for each particle:
@@ -177,6 +177,25 @@ namespace impl_ {
 		int* output = thrust::raw_pointer_cast(active_cell_num_ptcs->data());
 		Compact <<<num_blocks, kNumThreadPerBlock>>> (
 			input, flags, compact_indices, size, output);
+	}
+
+	// compute |ptc_begins_in_active_cell|
+	void ComputePtcBeginsInActiveCell(
+		const d_vector<int>& active_cell_num_ptcs,
+		d_vector<int>* ptc_begins_in_active_cell)
+	{
+		assert(active_cell_num_ptcs.size() == 
+			ptc_begins_in_active_cell->size());
+		thrust::exclusive_scan(thrust::device, 
+			active_cell_num_ptcs.begin(), active_cell_num_ptcs.end(),
+			ptc_begins_in_active_cell->begin(), 0);
+	}
+
+	// compute |cell_ptc_indices|
+	__global__ void ComputeCellPtcIndices(
+		const int num_ptcs, int* cell_ptc_indices)
+	{
+
 	}
 } // namespace impl_
 } // namespace pbf
