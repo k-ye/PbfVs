@@ -3,9 +3,16 @@
 // CUDA
 #include "cuda_runtime.h"
 #include <thrust\device_vector.h>
+#include <thrust\scan.h>
+#include <thrust\execution_policy.h>
+#include <thrust\copy.h>
 
 namespace pbf {
 namespace impl_ {
+	constexpr int kNumThreadPerBlock = 256;
+	
+	template <typename T>
+	using d_vector = thrust::device_vector<T>;
 	// ParticleSystemGpu
 	//
 	// CellGridGpu (equivalent to SpatialHash on CPU)
@@ -16,7 +23,9 @@ namespace impl_ {
 	// Example: a particle system of 8 particles, a cell grid of 5 cells.
 	// We will illustrate the necessary arrays for updating the cell grid.
 	//
-	// | 0 | 1 | 2 | 3 | 4 |  cell index 
+	// cell index
+	// | 0 | 1 | 2 | 3 | 4 |   
+	//
 	// cell_num_ptcs
 	//   3   0   1   4   0
 	// - size: #cells
@@ -98,22 +107,76 @@ namespace impl_ {
 			(0 <= cell.z && cell.z < num_cells_dim.z));
 	}
 
-	void ResetNumPtcsInCell(thrust::device_vector<int>* cell_num_ptcs) {
+	void ResetNumPtcsInCell(d_vector<int>* cell_num_ptcs) {
 		const size_t sz = cell_num_ptcs->size();
 		cell_num_ptcs->assign(sz, 0);
 	}
 
-	__global__ void CountNumPtcsInCell(const float3* positions, 
-		const int num_ptcs, const float cell_sz,
-		const int3 num_cells_dim, int* cell_num_ptcs,
-		int* ptc_offset_within_cell) {
+	// count |cell_num_ptcs| and set the offset of each partilce
+	// in |ptc_offset_within_cell|.
+	__global__ void CountPtcsAndSetPtcOffsetsInCell(
+		const float3* positions, const int num_ptcs, 
+		const float cell_sz, const int3 num_cells_dim, 
+		int* cell_num_ptcs, int* ptc_offset_within_cell) 
+	{
 		const int ptc_i = (blockIdx.x * blockDim.x) + threadIdx.x;
 		if (ptc_i >= num_ptcs) return;
 		int3 ptc_cell = GetCell(positions[ptc_i], cell_sz);
 		int cell_index = GetCellIndex(ptc_cell, num_cells_dim);
+		// Count the number of particles in |ptc_cell|. The returned
+		// value is also used as this particle's unique offset.
 		int offs = atomicAdd(&cell_num_ptcs[cell_index], 1);
 		ptc_offset_within_cell[ptc_i] = offs;
 	}
 
+	// set |cell_is_active_flags|
+	__global__ void SetCellIsActiveFlags(const int* cell_num_ptcs,
+		const int num_cells, int* cell_is_active_flags) 
+	{
+		const int cell_i = (blockIdx.x * blockDim.x) + threadIdx.x;
+		if (cell_i >= num_cells) return;
+		cell_is_active_flags[cell_i] = (cell_num_ptcs[cell_i] > 0);
+	}
+
+	// compute |cell_to_active_cell_indices|
+	void ComputeCellToActiveCellIndices(
+		const d_vector<int>& cell_is_active_flags,
+		d_vector<int>* cell_to_active_cell_indices) 
+	{
+		assert(cell_is_active_flags.size() == 
+			cell_to_active_cell_indices->size());
+		thrust::exclusive_scan(thrust::device, 
+			cell_is_active_flags.begin(), cell_is_active_flags.end(),
+			cell_to_active_cell_indices->begin(), 0);
+	}
+
+	__global__ void Compact(const int* input, const int* flag, 
+		const int* compact_indices, const int size, int* output) 
+	{
+		const int idx = (blockIdx.x * blockDim.x) + threadIdx.x;
+		if (idx >= size) return;
+		if (flag[idx] != 0) {
+			const int compact_idx = compact_indices[idx];
+			output[compact_idx] = input[idx];
+		}
+	}
+
+	// compact |cell_num_ptcs| to get |active_cell_num_ptcs|
+	void ComputeActiveCellNumPtcs(const d_vector<int>& cell_num_ptcs,
+		const d_vector<int>& cell_is_active_flags,
+		const d_vector<int>& cell_to_active_cell_indices,
+		d_vector<int>* active_cell_num_ptcs)
+	{
+		const int size = cell_is_active_flags.size();
+		const int num_blocks = ((size + kNumThreadPerBlock - 1) /
+			kNumThreadPerBlock);
+		const int* input = thrust::raw_pointer_cast(cell_num_ptcs.data());
+		const int* flags = thrust::raw_pointer_cast(cell_is_active_flags.data());
+		const int* compact_indices = thrust::raw_pointer_cast(
+			cell_to_active_cell_indices.data());
+		int* output = thrust::raw_pointer_cast(active_cell_num_ptcs->data());
+		Compact <<<num_blocks, kNumThreadPerBlock>>> (
+			input, flags, compact_indices, size, output);
+	}
 } // namespace impl_
 } // namespace pbf
