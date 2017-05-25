@@ -1,7 +1,8 @@
-#include "../include/pbf_solver_gpu.h"
+#include "..\include\pbf_solver_gpu.h"
 
 // CUDA
 #include "cuda_runtime.h"
+#include "..\include\helper_math.h"
 #include <thrust\device_vector.h>
 #include <thrust\scan.h>
 #include <thrust\execution_policy.h>
@@ -106,12 +107,19 @@ namespace impl_ {
 		return result;
 	}
 
-	__device__ bool IsValidCell(int3 cell, int3 num_cells_dim) {
+	__device__ bool CellOutOfRange(int3 cell, int3 num_cells_dim) {
 		return ((0 <= cell.x && cell.x < num_cells_dim.x) &&
 			(0 <= cell.y && cell.y < num_cells_dim.y) &&
 			(0 <= cell.z && cell.z < num_cells_dim.z));
 	}
 
+	__device__ float DistanceSquare(float3 a, float3 b) {
+		float x = a.x - b.x;
+		float y = a.y - b.y;
+		float z = a.z - b.z;
+		float result = x * x + y * y + z * z;
+		return result;
+	}
 	/////
 	// CellGrid
 	/////
@@ -123,7 +131,7 @@ namespace impl_ {
 	// - compute |ptc_to_cell| 
 	// - count |cell_num_ptcs|
 	// - set the offset of each partilce in |ptc_offset_within_cell|.
-	__global__ void CountPtcsAndSetPtcOffsetsInCell(const float3* positions,
+	__global__ void CellGridEntryPointKernel(const float3* positions,
 		const int num_ptcs, const float cell_sz, const int3 num_cells_dim,
 		int* ptc_to_cell, int* cell_num_ptcs, int* ptc_offset_within_cell) 
 	{
@@ -141,7 +149,7 @@ namespace impl_ {
 	}
 
 	// set |cell_is_active_flags|
-	__global__ void SetCellIsActiveFlags(const int* cell_num_ptcs,
+	__global__ void SetCellIsActiveFlagsKernel(const int* cell_num_ptcs,
 		const int num_cells, int* cell_is_active_flags) 
 	{
 		const int cell_i = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -161,7 +169,7 @@ namespace impl_ {
 			cell_to_active_cell_indices->begin(), 0);
 	}
 
-	__global__ void Compact(const int* input, const int* flag, 
+	__global__ void CompactKernel(const int* input, const int* flag, 
 		const int* compact_indices, const int size, int* output) 
 	{
 		const int idx = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -186,7 +194,7 @@ namespace impl_ {
 		const int* compact_indices = thrust::raw_pointer_cast(
 			cell_to_active_cell_indices.data());
 		int* output = thrust::raw_pointer_cast(active_cell_num_ptcs->data());
-		Compact <<<num_blocks, kNumThreadPerBlock>>> (
+		CompactKernel<<<num_blocks, kNumThreadPerBlock>>> (
 			input, flags, compact_indices, size, output);
 	}
 
@@ -203,7 +211,7 @@ namespace impl_ {
 	}
 
 	// compute |cell_ptc_indices|
-	__global__ void ComputeCellPtcIndices(
+	__global__ void ComputeCellPtcIndicesKernel(
 		const int* ptc_to_cell, const int* cell_to_active_cell_indices, 
 		const int* ptc_begins_in_active_cell, 
 		const int* ptc_offsets_within_cell,
@@ -224,5 +232,46 @@ namespace impl_ {
 	// Find Neighbor Particles
 	/////
 
+	// Count |ptc_num_neighbors|
+	// - |radius|: searching radius
+	__global__ void CountPtcNumNeighbors(
+		const float3* positions, const int* ptc_to_cell, 
+		const int* cell_to_active_cell_indices, const int* cell_ptc_indices, 
+		const int* ptc_begins_in_active_cell, const int* active_cell_num_ptcs,
+		const int num_ptcs, const float cell_sz, const int3 num_cells_dim,
+		const float radius, int* ptc_num_neighbors)
+	{
+		const int ptc_i = (blockIdx.x * blockDim.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
+
+		int3 ptc_cell = GetCell(positions[ptc_i], cell_sz);
+		int num_neighbors = 0;
+		const float radius_sqr = radius * radius;
+		const float3 pos_i = positions[ptc_i];
+		// We are only checking the 8 adjacent cells plus the cell itself,
+		// this implies that our cell size must be greater than |radius|.
+		for (int cz = -1; cz <= 1; ++cz) {
+			for (int cy = -1; cy <= 1; ++cy) {
+				for (int cx = -1; cx <= 1; ++cx) {
+					int3 nb_cell = ptc_cell + make_int3(cx, cy, cz);
+					if (CellOutOfRange(nb_cell, num_cells_dim))
+						continue;
+					int nb_cell_idx = GetCellIndex(nb_cell, num_cells_dim);
+					const int nb_ac_idx = 
+						cell_to_active_cell_indices[nb_cell_idx];
+					const int ac_num_ptcs = active_cell_num_ptcs[nb_ac_idx];
+					const int nb_ptc_begin = ptc_begins_in_active_cell[nb_ac_idx];
+					for (int offs = 0; offs < ac_num_ptcs; ++offs) {
+						const int ptc_j = cell_ptc_indices[nb_ptc_begin + offs];
+						float dist_sqr = DistanceSquare(pos_i, positions[ptc_j]);
+						if (dist_sqr < radius_sqr) {
+							++num_neighbors;
+						}
+					}
+				}
+			}
+		}
+		ptc_num_neighbors[ptc_i] = num_neighbors;
+	}
 } // namespace impl_
 } // namespace pbf
