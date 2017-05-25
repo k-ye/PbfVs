@@ -26,6 +26,11 @@ namespace impl_ {
 	// cell index
 	// | 0 | 1 | 2 | 3 | 4 |   
 	//
+	// ptc_to_cell
+	// - size: #particles
+	// - a map between each particle index to its cell 
+	//   (NOT the active cell) index
+	//
 	// cell_num_ptcs
 	//   3   0   1   4   0
 	// - size: #cells
@@ -107,22 +112,28 @@ namespace impl_ {
 			(0 <= cell.z && cell.z < num_cells_dim.z));
 	}
 
+	/////
+	// CellGrid
+	/////
 	void ResetNumPtcsInCell(d_vector<int>* cell_num_ptcs) {
 		const size_t sz = cell_num_ptcs->size();
 		cell_num_ptcs->assign(sz, 0);
 	}
 
-	// count |cell_num_ptcs| and set the offset of each partilce
-	// in |ptc_offset_within_cell|.
-	__global__ void CountPtcsAndSetPtcOffsetsInCell(
-		const float3* positions, const int num_ptcs, 
-		const float cell_sz, const int3 num_cells_dim, 
-		int* cell_num_ptcs, int* ptc_offset_within_cell) 
+	// - compute |ptc_to_cell| 
+	// - count |cell_num_ptcs|
+	// - set the offset of each partilce in |ptc_offset_within_cell|.
+	__global__ void CountPtcsAndSetPtcOffsetsInCell(const float3* positions,
+		const int num_ptcs, const float cell_sz, const int3 num_cells_dim,
+		int* ptc_to_cell, int* cell_num_ptcs, int* ptc_offset_within_cell) 
 	{
 		const int ptc_i = (blockIdx.x * blockDim.x) + threadIdx.x;
 		if (ptc_i >= num_ptcs) return;
+		
 		int3 ptc_cell = GetCell(positions[ptc_i], cell_sz);
 		int cell_index = GetCellIndex(ptc_cell, num_cells_dim);
+		
+		ptc_to_cell[ptc_i] = cell_index;
 		// Count the number of particles in |ptc_cell|. The returned
 		// value is also used as this particle's unique offset.
 		int offs = atomicAdd(&cell_num_ptcs[cell_index], 1);
@@ -193,9 +204,25 @@ namespace impl_ {
 
 	// compute |cell_ptc_indices|
 	__global__ void ComputeCellPtcIndices(
+		const int* ptc_to_cell, const int* cell_to_active_cell_indices, 
+		const int* ptc_begins_in_active_cell, 
+		const int* ptc_offsets_within_cell,
 		const int num_ptcs, int* cell_ptc_indices)
 	{
-
+		const int ptc_i = (blockIdx.x * blockDim.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
+		
+		const int cell_i = ptc_to_cell[ptc_i];
+		// active cell index
+		const int ac_idx = cell_to_active_cell_indices[cell_i];
+		const int ptc_begin_index = ptc_begins_in_active_cell[ac_idx];
+		const int i = ptc_begin_index + ptc_offsets_within_cell[ptc_i];
+		cell_ptc_indices[i] = ptc_i;
 	}
+
+	/////
+	// Find Neighbor Particles
+	/////
+
 } // namespace impl_
 } // namespace pbf
