@@ -65,10 +65,10 @@ namespace impl_ {
 	// - size: #particles
 	// - for any given particle index, |p_i|, we can get its position, |pos_i|,
 	//   and its cell, |cell_i|. Then:
-	//	 // the active cell index of |cell_i| in which |ptc_i| lives
-	//	 ac_idx = cell_to_active_cell_indices[cell_i];
+	//   // the active cell index of |cell_i| in which |ptc_i| lives
+	//   ac_idx = cell_to_active_cell_indices[cell_i];
 	//   // the beginning index of the particles within |cell_i|
-	//	 // in |cell_ptc_indices|
+	//   // in |cell_ptc_indices|
 	//   ptc_begin_idx = ptc_begins_in_active_cell[ac_index];
 	//   p_i' = cell_ptc_indices[ptc_begin_idx + ptc_offset_within_cell[p_i]]; 
 	//   assert(p_i == p_i');
