@@ -234,7 +234,7 @@ namespace impl_ {
 
 	// Count |ptc_num_neighbors|
 	// - |radius|: searching radius
-	__global__ void CountPtcNumNeighbors(
+	__global__ void CountPtcNumNeighborsKernel(
 		const float3* positions, const int* ptc_to_cell, 
 		const int* cell_to_active_cell_indices, const int* cell_ptc_indices, 
 		const int* ptc_begins_in_active_cell, const int* active_cell_num_ptcs,
@@ -272,6 +272,63 @@ namespace impl_ {
 			}
 		}
 		ptc_num_neighbors[ptc_i] = num_neighbors;
+	}
+	
+	// compute |ptc_neighbor_begins|
+	void ComputePtcNeighborBegins(const d_vector<int>& ptc_num_neighbors,
+		d_vector<int>* ptc_neighbor_begins) 
+	{
+		assert(ptc_num_neighbors.size() == 
+			ptc_neighbor_begins->size());
+		thrust::exclusive_scan(thrust::device, 
+			ptc_num_neighbors.begin(), ptc_num_neighbors.end(),
+			ptc_neighbor_begins->begin(), 0);
+	}
+
+	// Find neighbor particles and store them in |ptc_neighbor_indices|
+	// - |radius|: searching radius
+	__global__ void FindPtcNeighborIndicesKernel(
+		const float3* positions, const int* ptc_to_cell, 
+		const int* cell_to_active_cell_indices, const int* cell_ptc_indices, 
+		const int* ptc_begins_in_active_cell, const int* active_cell_num_ptcs,
+		const int num_ptcs, const float cell_sz, const int3 num_cells_dim,
+		const float radius, int* ptc_neighbor_begins, int* ptc_neighbor_indices, 
+		const int* ptc_num_neighbors /*debug purpose, rm once correct*/)
+	{
+		const int ptc_i = (blockIdx.x * blockDim.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
+
+		int3 ptc_cell = GetCell(positions[ptc_i], cell_sz);
+		int cur = ptc_neighbor_begins[ptc_i];
+		const int cur_copy = cur;
+		const float radius_sqr = radius * radius;
+		const float3 pos_i = positions[ptc_i];
+		// We are only checking the 8 adjacent cells plus the cell itself,
+		// this implies that our cell size must be greater than |radius|.
+		for (int cz = -1; cz <= 1; ++cz) {
+			for (int cy = -1; cy <= 1; ++cy) {
+				for (int cx = -1; cx <= 1; ++cx) {
+					int3 nb_cell = ptc_cell + make_int3(cx, cy, cz);
+					if (CellOutOfRange(nb_cell, num_cells_dim))
+						continue;
+					int nb_cell_idx = GetCellIndex(nb_cell, num_cells_dim);
+					const int nb_ac_idx = 
+						cell_to_active_cell_indices[nb_cell_idx];
+					const int ac_num_ptcs = active_cell_num_ptcs[nb_ac_idx];
+					const int nb_ptc_begin = ptc_begins_in_active_cell[nb_ac_idx];
+					for (int offs = 0; offs < ac_num_ptcs; ++offs) {
+						const int ptc_j = cell_ptc_indices[nb_ptc_begin + offs];
+						float dist_sqr = DistanceSquare(pos_i, positions[ptc_j]);
+						if (dist_sqr < radius_sqr) {
+							ptc_neighbor_indices[cur] = ptc_j;
+							++cur;
+						}
+					}
+				}
+			}
+		}
+		// Use GPU assert!
+		// assert((cur - cur_copy) == ptc_num_neighbors[ptc_i]);
 	}
 } // namespace impl_
 } // namespace pbf
