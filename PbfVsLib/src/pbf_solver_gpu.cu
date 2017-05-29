@@ -3,17 +3,16 @@
 // CUDA
 #include "cuda_runtime.h"
 #include "..\include\helper_math.h"
-#include <thrust\device_vector.h>
 #include <thrust\scan.h>
 #include <thrust\execution_policy.h>
 #include <thrust\copy.h>
 
 namespace pbf {
+
+
 namespace impl_ {
 	constexpr int kNumThreadPerBlock = 256;
 	
-	template <typename T>
-	using d_vector = thrust::device_vector<T>;
 	// ParticleSystemGpu
 	//
 	// CellGridGpu (equivalent to SpatialHash on CPU)
@@ -91,7 +90,11 @@ namespace impl_ {
 	//
 	// ptc_neighbor_indices
 	// - size: sum of |ptc_num_neighbors| 
-	
+
+	int ComputeNumBlocks(int num) {
+		return ((num + kNumThreadPerBlock - 1) / kNumThreadPerBlock);
+	}
+
 	__device__ int3 GetCell(float3 pos, float cell_sz) {
 		const float cell_sz_recpr = 1.0f / cell_sz;
 		int cx = (int)(pos.x * cell_sz_recpr);
@@ -133,7 +136,7 @@ namespace impl_ {
 	// - set the offset of each partilce in |ptc_offset_within_cell|.
 	__global__ void CellGridEntryPointKernel(const float3* positions,
 		const int num_ptcs, const float cell_sz, const int3 num_cells_dim,
-		int* ptc_to_cell, int* cell_num_ptcs, int* ptc_offset_within_cell) 
+		int* ptc_to_cell, int* cell_num_ptcs , int* ptc_offsets_within_cell) 
 	{
 		const int ptc_i = (blockIdx.x * blockDim.x) + threadIdx.x;
 		if (ptc_i >= num_ptcs) return;
@@ -145,7 +148,8 @@ namespace impl_ {
 		// Count the number of particles in |ptc_cell|. The returned
 		// value is also used as this particle's unique offset.
 		int offs = atomicAdd(&cell_num_ptcs[cell_index], 1);
-		ptc_offset_within_cell[ptc_i] = offs;
+		(void)offs;
+		ptc_offsets_within_cell[ptc_i] = offs;
 	}
 
 	// set |cell_is_active_flags|
@@ -187,8 +191,7 @@ namespace impl_ {
 		d_vector<int>* active_cell_num_ptcs)
 	{
 		const int size = cell_is_active_flags.size();
-		const int num_blocks = ((size + kNumThreadPerBlock - 1) /
-			kNumThreadPerBlock);
+		const int num_blocks = ComputeNumBlocks(size);
 		const int* input = thrust::raw_pointer_cast(cell_num_ptcs.data());
 		const int* flags = thrust::raw_pointer_cast(cell_is_active_flags.data());
 		const int* compact_indices = thrust::raw_pointer_cast(
@@ -234,8 +237,7 @@ namespace impl_ {
 
 	// Count |ptc_num_neighbors|
 	// - |radius|: searching radius
-	__global__ void CountPtcNumNeighborsKernel(
-		const float3* positions, const int* ptc_to_cell, 
+	__global__ void CountPtcNumNeighborsKernel(const float3* positions, 
 		const int* cell_to_active_cell_indices, const int* cell_ptc_indices, 
 		const int* ptc_begins_in_active_cell, const int* active_cell_num_ptcs,
 		const int num_ptcs, const float cell_sz, const int3 num_cells_dim,
@@ -287,8 +289,7 @@ namespace impl_ {
 
 	// Find neighbor particles and store them in |ptc_neighbor_indices|
 	// - |radius|: searching radius
-	__global__ void FindPtcNeighborIndicesKernel(
-		const float3* positions, const int* ptc_to_cell, 
+	__global__ void FindPtcNeighborIndicesKernel(const float3* positions, 
 		const int* cell_to_active_cell_indices, const int* cell_ptc_indices, 
 		const int* ptc_begins_in_active_cell, const int* active_cell_num_ptcs,
 		const int num_ptcs, const float cell_sz, const int3 num_cells_dim,
@@ -331,4 +332,78 @@ namespace impl_ {
 		// assert((cur - cur_copy) == ptc_num_neighbors[ptc_i]);
 	}
 } // namespace impl_
+		
+CellGridGpu::CellGridGpu(float3 world_sz, float cell_sz)
+	: world_sz_per_dim_(world_sz), cell_sz_(cell_sz) {
+	num_cells_per_dim_.x = (int)(world_sz_per_dim_.x / cell_sz_) + 1;
+	num_cells_per_dim_.y = (int)(world_sz_per_dim_.y / cell_sz_) + 1;
+	num_cells_per_dim_.z = (int)(world_sz_per_dim_.z / cell_sz_) + 1;
+
+	total_num_cells_ = num_cells_per_dim_.x * num_cells_per_dim_.y
+		* num_cells_per_dim_.z;
+}
+
+void UpdateCellGrid(const d_vector<float3>& positions, CellGridGpu* cell_grid)
+{
+	using thrust::raw_pointer_cast;
+	using namespace impl_;
+
+	const int num_ptcs = positions.size();
+	const int num_cells = cell_grid->total_num_cells();
+
+	const float3* positions_ptr = raw_pointer_cast(positions.data());
+	d_vector<int> ptc_to_cell(num_ptcs, 0);
+	int* ptc_to_cell_ptr = raw_pointer_cast(ptc_to_cell.data());
+	d_vector<int> cell_num_ptcs(num_cells, 0);
+	int* cell_num_ptcs_ptr = raw_pointer_cast(cell_num_ptcs.data());
+	d_vector<int> ptc_offsets_within_cell(num_ptcs, 0);
+	int* ptc_offsets_within_cell_ptr = 
+		raw_pointer_cast(ptc_offsets_within_cell.data());
+
+	const int num_blocks_ptc = ComputeNumBlocks(num_ptcs);
+	CellGridEntryPointKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(
+		positions_ptr, num_ptcs, cell_grid->cell_size(), 
+		cell_grid->num_cells_per_dim(), ptc_to_cell_ptr, 
+		cell_num_ptcs_ptr, ptc_offsets_within_cell_ptr);
+
+	d_vector<int> cell_is_active_flags(num_cells, 0);
+	int* cell_is_active_flags_ptr = raw_pointer_cast(
+		cell_is_active_flags.data());
+	
+	const int num_blocks_cell = ComputeNumBlocks(num_cells);
+	SetCellIsActiveFlagsKernel<<<num_blocks_cell, kNumThreadPerBlock>>>(
+		cell_num_ptcs_ptr, num_cells, cell_is_active_flags_ptr);
+
+	d_vector<int>& cell_to_active_cell_indices = 
+		cell_grid->cell_to_active_cell_indices;
+	cell_to_active_cell_indices.clear();
+	cell_to_active_cell_indices.resize(num_cells, 0);
+	ComputeCellToActiveCellIndices(cell_is_active_flags,
+		&cell_to_active_cell_indices);
+
+	d_vector<int>& active_cell_num_ptcs = cell_grid->active_cell_num_ptcs;
+	active_cell_num_ptcs.clear();
+	active_cell_num_ptcs.resize(num_cells, 0);
+	ComputeActiveCellNumPtcs(cell_num_ptcs, cell_is_active_flags,
+		cell_to_active_cell_indices, &active_cell_num_ptcs);
+
+	d_vector<int>& ptc_begins_in_active_cell =
+		cell_grid->ptc_begins_in_active_cell;
+	ptc_begins_in_active_cell.clear();
+	ptc_begins_in_active_cell.resize(num_cells, 0);
+	ComputePtcBeginsInActiveCell(
+		active_cell_num_ptcs, &ptc_begins_in_active_cell);
+
+	const int* cell_to_active_cell_indices_ptr =
+		raw_pointer_cast(cell_to_active_cell_indices.data());
+	const int* ptc_begins_in_active_cell_ptr =
+		raw_pointer_cast(ptc_begins_in_active_cell.data());
+	d_vector<int>& cell_ptc_indices = cell_grid->cell_ptc_indices;
+	int* cell_ptc_indices_ptr = raw_pointer_cast(cell_ptc_indices.data());
+	ComputeCellPtcIndicesKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(
+		ptc_to_cell_ptr, cell_to_active_cell_indices_ptr,
+		ptc_begins_in_active_cell_ptr, ptc_offsets_within_cell_ptr,
+		num_ptcs, cell_ptc_indices_ptr);
+}
+
 } // namespace pbf
