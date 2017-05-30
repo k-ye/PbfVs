@@ -25,6 +25,7 @@
     <ClInclude Include="include\boundary_constraint.h" />
     <ClInclude Include="include\config.h" />
     <ClInclude Include="include\constants.h" />
+    <ClInclude Include="include\cuda_basic.h" />
     <ClInclude Include="include\glm_headers.h" />
     <ClInclude Include="include\gl_fix.h" />
     <ClInclude Include="include\gl_utils.h" />

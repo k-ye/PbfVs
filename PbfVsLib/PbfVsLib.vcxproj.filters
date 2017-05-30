@@ -75,6 +75,9 @@
     <ClInclude Include="include\pbf_solver_gpu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\cuda_basic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\aabb.cpp">

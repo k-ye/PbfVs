@@ -2,11 +2,14 @@
 #define pbf_solver_gpu_h
 
 #include <thrust\device_vector.h>
+#include "aabb.h"
 
 namespace pbf {
 	template <typename T>
 	using d_vector = thrust::device_vector<T>;
 	
+	float3 Convert(const point_t& pt);
+		
 	class CellGridGpu {
 	public:
 		CellGridGpu(float3 world_sz, float cell_sz);
@@ -27,8 +30,11 @@ namespace pbf {
 		int total_num_cells_;
 	};
 
-	void UpdateCellGrid(const d_vector<float3>& positions,
+	void UpdateCellGrid(const d_vector<float3>& positions, 
 		CellGridGpu* cell_grid);
+
+	void Query(const d_vector<float3>& positions, const CellGridGpu& cell_grid,
+		const AABB& range, d_vector<int>* cell_num_ptcs_inside);
 } // namespace pbf
 
 #endif // pbf_solver_gpu_h

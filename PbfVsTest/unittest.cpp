@@ -5,10 +5,12 @@
 #include "include\particle_system.h"
 #include "include\sh_position_getter.h"
 #include "include\spatial_hash.h"
+#include "include\cuda_basic.h"
 
 #include "include\pbf_solver_gpu.h"
 
-#include "cuda_runtime.h"
+#include <thrust\execution_policy.h>
+#include <thrust\host_vector.h>
 #include <sstream>
 #include <stdlib.h> // srand, rand
 #include <string>
@@ -50,10 +52,6 @@ namespace {
 		return result;
 	}
 
-	float3 Convert(const point_t& pt) {
-		return make_float3(pt.x, pt.y, pt.z);
-	}
-
 	AABB GetQueryAABB() {
 		point_t kAabbMin{ kCellSize * kAabbOffsetByCell };
 		point_t kAabbMax{ kCellSize * (kNumCellsPerDim - 
@@ -70,6 +68,7 @@ namespace {
 
 		TEST_METHOD(TestCorrectness)
 		{
+			/*			
 			srand(time(nullptr));
 			Init();
 
@@ -88,6 +87,7 @@ namespace {
 					Assert::IsTrue(ptcs_inside_aabb_ref_.count(ptc_i) == 1);
 				}
 			}
+			*/
 		}
 
 	private:
@@ -135,6 +135,8 @@ namespace {
 
 		TEST_METHOD(TestCellGridGpu)
 		{
+			using thrust::host_vector;
+
 			std::vector<float3> h_positions;
 			RandomScatterPoints(&h_positions);
 
@@ -143,6 +145,17 @@ namespace {
 			CellGridGpu cell_grid{ world_sz_dim, kTestDsCellSize };
 
 			UpdateCellGrid(d_positions, &cell_grid);
+			d_vector<int> cell_num_ptcs_inside;
+			Query(d_positions, cell_grid, query_aabb_, &cell_num_ptcs_inside);
+			host_vector<int> h_cell_num_ptcs_inside{ cell_num_ptcs_inside };
+			int num_ptcs_inside = 0;
+			for (int i : h_cell_num_ptcs_inside)
+				num_ptcs_inside += i;
+			std::stringstream ss;
+			ss << "Ref size: " << ptcs_inside_aabb_ref_.size()
+				<< ", cuda size: " << num_ptcs_inside << std::endl;
+			auto log_str = ss.str();
+			Logger::WriteMessage(log_str.c_str());
 		}
 
 	private:
