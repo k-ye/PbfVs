@@ -2,6 +2,7 @@
 #define pbf_solver_gpu_h
 
 #include <thrust\device_vector.h>
+#include <thrust\reduce.h>
 #include "aabb.h"
 
 namespace pbf {
@@ -9,7 +10,7 @@ namespace pbf {
 	using d_vector = thrust::device_vector<T>;
 	
 	float3 Convert(const point_t& pt);
-		
+
 	class CellGridGpu {
 	public:
 		CellGridGpu(float3 world_sz, float cell_sz);
@@ -23,6 +24,10 @@ namespace pbf {
 		d_vector<int> ptc_begins_in_active_cell;
 		d_vector<int> cell_ptc_indices;
 
+		// Below are for debug purpose, we do not need to store these vectors.
+		d_vector<int> ptc_to_cell;
+		d_vector<int> cell_is_active_flags;
+		d_vector<int> ptc_offsets_within_cell;
 	private:
 		float3 world_sz_per_dim_;
 		float cell_sz_;

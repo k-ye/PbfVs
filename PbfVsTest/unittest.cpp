@@ -34,9 +34,10 @@ namespace {
 	// Cell size of the test world.
 	const float kCellSize = 1.0f;
 	const float kHalfCellSize = kCellSize / 2;
-	const unsigned kNumCellsPerDim = 12u;
+	const unsigned kNumCellsPerDim = 15u;
 	const float kWorldSize = kCellSize * kNumCellsPerDim;
 	const unsigned kAabbOffsetByCell = 3u;
+	const unsigned kNumIters = 100u;
 	// Cell size of the data structure being tested.
 	const float kTestDsCellSize = 1.5f;
 
@@ -59,38 +60,48 @@ namespace {
 		AABB aabb{ kAabbMin, kAabbMax };
 		return aabb;
 	}
+
+	int Reduce(const d_vector<int>& d_vec) {
+		thrust::host_vector<int> h_vec{ d_vec };
+		int result = 0;
+		for (int i : h_vec)
+			result += i;
+		return result;
+	}
 } // namespace anonymous
 	
 	TEST_CLASS(SpatialHashTest)
 	{
 	public:
-		SpatialHashTest() : kNumIters(100u), query_aabb_(GetQueryAABB()) { }
+		SpatialHashTest() : query_aabb_(GetQueryAABB()) { }
 
-		TEST_METHOD(TestCorrectness)
+		TEST_METHOD(TestSpatialHashCorrect)
 		{
-			/*			
 			srand(time(nullptr));
 			Init();
 
 			for (int iter = 0; iter < kNumIters; ++iter) {
-				RandomScatterPoints();
-				spatial_hash_.UpdateAll();
-				auto query_result = spatial_hash_.Query(query_aabb_);
-
-				std::stringstream ss;
-				ss << "Query result size: " << query_result.size();
-				auto log_str = ss.str();
-				Logger::WriteMessage(log_str.c_str());
-				// Assert::AreEqual(query_result.size(), num_inside_aabb_ref_);
-				Assert::AreEqual(query_result.size(), ptcs_inside_aabb_ref_.size());
-				for (size_t ptc_i : query_result) {
-					Assert::IsTrue(ptcs_inside_aabb_ref_.count(ptc_i) == 1);
-				}
+				TestShOneIter();
 			}
-			*/
 		}
 
 	private:
+		void TestShOneIter() {
+			RandomScatterPoints();
+			spatial_hash_.UpdateAll();
+			auto query_result = spatial_hash_.Query(query_aabb_);
+
+			std::stringstream ss;
+			ss << "Query result size: " << query_result.size();
+			auto log_str = ss.str();
+			Logger::WriteMessage(log_str.c_str());
+			// Assert::AreEqual(query_result.size(), num_inside_aabb_ref_);
+			Assert::AreEqual(query_result.size(), ptcs_inside_aabb_ref_.size());
+			for (size_t ptc_i : query_result) {
+				Assert::IsTrue(ptcs_inside_aabb_ref_.count(ptc_i) == 1);
+			}
+		}
+		
 		void Init() {
 			// init particle system
 			for (unsigned i = 0; i < kNumPoints; ++i) {
@@ -121,7 +132,6 @@ namespace {
 			}
 		}
 
-		const unsigned kNumIters;
 		AABB query_aabb_;
 		ParticleSystem ps_;
 		SpatialHash<size_t, PositionGetter> spatial_hash_;
@@ -136,7 +146,15 @@ namespace {
 		TEST_METHOD(TestCellGridGpu)
 		{
 			using thrust::host_vector;
+			srand(time(nullptr));
 
+			for (int iter = 0; iter < kNumIters; ++iter) {
+				TestCellGridGpuOneIter();
+			}
+		}
+
+	private:
+		void TestCellGridGpuOneIter() {
 			std::vector<float3> h_positions;
 			RandomScatterPoints(&h_positions);
 
@@ -145,20 +163,39 @@ namespace {
 			CellGridGpu cell_grid{ world_sz_dim, kTestDsCellSize };
 
 			UpdateCellGrid(d_positions, &cell_grid);
+
+#if 0
+			// More verbosed test
+			host_vector<int> h_ptc_to_cell{ cell_grid.ptc_to_cell };
+			host_vector<int> h_cell_to_active_cell_indices{
+				cell_grid.cell_to_active_cell_indices };
+			host_vector<int> h_ptc_begins_in_active_cell{
+				cell_grid.ptc_begins_in_active_cell };
+			host_vector<int> h_ptc_offsets_within_cell{ 
+				cell_grid.ptc_offsets_within_cell };
+			host_vector<int> h_cell_ptc_indices{ cell_grid.cell_ptc_indices };
+			for (int ptc_i = 0; ptc_i < kNumPoints; ++ptc_i) {
+				int cell_i = h_ptc_to_cell[ptc_i];
+				int ac_idx = h_cell_to_active_cell_indices[cell_i];
+				int ac_ptc_begin = h_ptc_begins_in_active_cell[ac_idx];
+				int offs = h_ptc_offsets_within_cell[ptc_i];
+				int ptc_i_prime = h_cell_ptc_indices[ac_ptc_begin + offs];
+				Assert::AreEqual(ptc_i, ptc_i_prime);
+			}
+#endif
 			d_vector<int> cell_num_ptcs_inside;
 			Query(d_positions, cell_grid, query_aabb_, &cell_num_ptcs_inside);
-			host_vector<int> h_cell_num_ptcs_inside{ cell_num_ptcs_inside };
-			int num_ptcs_inside = 0;
-			for (int i : h_cell_num_ptcs_inside)
-				num_ptcs_inside += i;
+			int num_ptcs_inside = Reduce(cell_num_ptcs_inside);
 			std::stringstream ss;
-			ss << "Ref size: " << ptcs_inside_aabb_ref_.size()
-				<< ", cuda size: " << num_ptcs_inside << std::endl;
+			ss << "Query ref size: " << ptcs_inside_aabb_ref_.size()
+				<< ", cuda computed size: " << num_ptcs_inside;
 			auto log_str = ss.str();
 			Logger::WriteMessage(log_str.c_str());
-		}
+			ss.str("");
+			Assert::AreEqual(num_ptcs_inside, (int)ptcs_inside_aabb_ref_.size());
 
-	private:
+		}
+		
 		void RandomScatterPoints(std::vector<float3>* positions) {
 			positions->clear();
 			ptcs_inside_aabb_ref_.clear();

@@ -357,11 +357,18 @@ namespace impl_ {
 		const int num_cells = cell_grid->total_num_cells();
 
 		const float3* positions_ptr = raw_pointer_cast(positions.data());
-		d_vector<int> ptc_to_cell(num_ptcs, 0);
+		// d_vector<int> ptc_to_cell(num_ptcs, 0);
+		d_vector<int>& ptc_to_cell = cell_grid->ptc_to_cell;
+		ptc_to_cell.clear();
+		ptc_to_cell.resize(num_ptcs, 0);
 		int* ptc_to_cell_ptr = raw_pointer_cast(ptc_to_cell.data());
 		d_vector<int> cell_num_ptcs(num_cells, 0);
 		int* cell_num_ptcs_ptr = raw_pointer_cast(cell_num_ptcs.data());
-		d_vector<int> ptc_offsets_within_cell(num_ptcs, 0);
+		// d_vector<int> ptc_offsets_within_cell(num_ptcs, 0);
+		d_vector<int>& ptc_offsets_within_cell = 
+			cell_grid->ptc_offsets_within_cell;
+		ptc_offsets_within_cell.clear();
+		ptc_offsets_within_cell.resize(num_ptcs, 0);
 		int* ptc_offsets_within_cell_ptr = 
 			raw_pointer_cast(ptc_offsets_within_cell.data());
 
@@ -373,7 +380,10 @@ namespace impl_ {
 		cudaDeviceSynchronize();
 		checkCudaErrors(cudaGetLastError());
 
-		d_vector<int> cell_is_active_flags(num_cells, 0);
+		// d_vector<int> cell_is_active_flags(num_cells, 0);
+		d_vector<int>& cell_is_active_flags = cell_grid->cell_is_active_flags;
+		cell_is_active_flags.clear();
+		cell_is_active_flags.resize(num_cells, 0);
 		int* cell_is_active_flags_ptr = raw_pointer_cast(
 			cell_is_active_flags.data());
 		
@@ -428,12 +438,15 @@ namespace impl_ {
 	}
 	
 	__global__ static void QueryCountKernel(const int num_cells, 
-		const float3 range_min, const float3 range_max,
-		const float3* positions, const int* cell_to_active_cell_indices,
+		const float3 range_min, const float3 range_max, const float3* positions, 
+		const int* cell_is_active_flags, const int* cell_to_active_cell_indices,
 		const int* ptc_begins_in_active_cell, const int* active_cell_num_ptcs,
 		const int* cell_ptc_indices, int* cell_num_ptcs_inside) {
 		int cell_i = (blockDim.x * blockIdx.x) + threadIdx.x;
 		if (cell_i >= num_cells) return;
+		
+		bool is_active = cell_is_active_flags[cell_i];;
+		if (!is_active) return;
 
 		const int ac_idx = cell_to_active_cell_indices[cell_i];
 		const int ptc_begin = ptc_begins_in_active_cell[ac_idx];
@@ -457,6 +470,8 @@ namespace impl_ {
 		const float3 range_min = Convert(range.min());
 		const float3 range_max = Convert(range.max());
 		const float3* positions_ptr = raw_pointer_cast(positions.data());
+		const int* cell_is_active_flags_ptr =
+			raw_pointer_cast(cell_grid.cell_is_active_flags.data());
 		const int* cell_to_active_cell_indices_ptr =
 			raw_pointer_cast(cell_grid.cell_to_active_cell_indices.data());
 		const int* ptc_begins_in_active_cell_ptr =
@@ -472,8 +487,8 @@ namespace impl_ {
 
 		const int num_blocks_cell = ComputeNumBlocks(num_cells);
 		QueryCountKernel<<<num_blocks_cell, kNumThreadPerBlock>>>(
-			num_cells, range_min, range_max,
-			positions_ptr, cell_to_active_cell_indices_ptr,
+			num_cells, range_min, range_max, positions_ptr, 
+			cell_is_active_flags_ptr, cell_to_active_cell_indices_ptr,
 			ptc_begins_in_active_cell_ptr, active_cell_num_ptcs_ptr,
 			cell_ptc_indices_ptr, cell_num_ptcs_inside_ptr);
 	}
