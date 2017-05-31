@@ -114,7 +114,7 @@ namespace impl_ {
 		return result;
 	}
 
-	__device__ bool CellOutOfRange(int3 cell, int3 num_cells_dim) {
+	__device__ bool IsCellInRange(int3 cell, int3 num_cells_dim) {
 		return ((0 <= cell.x && cell.x < num_cells_dim.x) &&
 			(0 <= cell.y && cell.y < num_cells_dim.y) &&
 			(0 <= cell.z && cell.z < num_cells_dim.z));
@@ -268,7 +268,7 @@ namespace impl_ {
 			for (int cy = -1; cy <= 1; ++cy) {
 				for (int cx = -1; cx <= 1; ++cx) {
 					int3 nb_cell = ptc_cell + make_int3(cx, cy, cz);
-					if (CellOutOfRange(nb_cell, num_cells_dim))
+					if (!IsCellInRange(nb_cell, num_cells_dim))
 						continue;
 					int nb_cell_idx = GetCellIndex(nb_cell, num_cells_dim);
 					if (!cell_is_active_flags[nb_cell_idx])
@@ -327,7 +327,7 @@ namespace impl_ {
 			for (int cy = -1; cy <= 1; ++cy) {
 				for (int cx = -1; cx <= 1; ++cx) {
 					int3 nb_cell = ptc_cell + make_int3(cx, cy, cz);
-					if (CellOutOfRange(nb_cell, num_cells_dim))
+					if (!IsCellInRange(nb_cell, num_cells_dim))
 						continue;
 					int nb_cell_idx = GetCellIndex(nb_cell, num_cells_dim);
 					if (!cell_is_active_flags[nb_cell_idx])
@@ -362,7 +362,7 @@ namespace impl_ {
 		int cell_i = (blockDim.x * blockIdx.x) + threadIdx.x;
 		if (cell_i >= num_cells) return;
 		
-		bool is_active = cell_is_active_flags[cell_i];;
+		bool is_active = cell_is_active_flags[cell_i];
 		if (!is_active) return;
 
 		const int ac_idx = cell_to_active_cell_indices[cell_i];
@@ -471,12 +471,15 @@ namespace impl_ {
 	}
 	
 	void FindParticleNeighbors(const d_vector<float3>& positions, const CellGridGpu& cell_grid, 
-		const float cell_sz, const int3& num_cells_dim, const float h, ParticleNeighbors* pn) 
+		const float h, ParticleNeighbors* pn) 
 	{
 		using namespace impl_;
 		using thrust::raw_pointer_cast;
-
+		
+		const float cell_sz = cell_grid.cell_size();
+		const int3 num_cells_dim = cell_grid.num_cells_per_dim();
 		const int num_ptcs = positions.size();
+
 		const float3* positions_ptr = raw_pointer_cast(positions.data());
 		const int* cell_is_active_flags_ptr = raw_pointer_cast(cell_grid.cell_is_active_flags.data());
 		const int* cell_to_active_cell_indices_ptr = 
@@ -497,7 +500,9 @@ namespace impl_ {
 			ptc_begins_in_active_cell_ptr, active_cell_num_ptcs_ptr,
 			num_ptcs, cell_sz, num_cells_dim,
 			h, ptc_num_neighbors_ptr);
-
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
+		
 		d_vector<int>& ptc_neighbor_begins = pn->ptc_neighbor_begins;
 		ptc_neighbor_begins.clear();
 		ptc_neighbor_begins.resize(num_ptcs, 0);
@@ -517,6 +522,8 @@ namespace impl_ {
 			cell_to_active_cell_indices_ptr, cell_ptc_indices_ptr, ptc_begins_in_active_cell_ptr, 
 			active_cell_num_ptcs_ptr, num_ptcs, cell_sz, num_cells_dim, h, ptc_neighbor_begins_ptr, 
 			ptc_neighbor_indices_ptr, ptc_num_neighbors_ptr /*debug purpose, rm once correct*/);
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
 	}
 
 	void Query(const d_vector<float3>& positions, const CellGridGpu& cell_grid, 

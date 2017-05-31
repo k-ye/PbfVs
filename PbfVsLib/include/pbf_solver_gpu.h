@@ -46,8 +46,7 @@ namespace pbf {
 		CellGridGpu* cell_grid);
 
 	void FindParticleNeighbors(const d_vector<float3>& positions,
-		const CellGridGpu& cell_grid, const float cell_sz, const int3& num_cells_dim,
-		const float h, ParticleNeighbors* pn);
+		const CellGridGpu& cell_grid, const float h, ParticleNeighbors* pn);
 
 	// For test purpose only
 	void Query(const d_vector<float3>& positions, const CellGridGpu& cell_grid,

@@ -184,13 +184,14 @@ namespace {
 			UpdateCellGrid(d_positions, &cell_grid);
 			
 			ParticleNeighbors pn;
-			FindParticleNeighbors(d_positions, cell_grid, cell_sz, num_cells_dim, h, &pn);
+			FindParticleNeighbors(d_positions, cell_grid, h, &pn);
 			thrust::host_vector<int> h_ptc_num_neighbors{ pn.ptc_num_neighbors };
 			std::stringstream ss;
 			ss << "Num neighbors ref size: " << 10 
 				<< ", cuda computed size: " << h_ptc_num_neighbors[0];
 			auto log_str = ss.str();
 			Logger::WriteMessage(log_str.c_str());
+			Assert::AreEqual(10, h_ptc_num_neighbors[0]);
 		}
 
 	private:
