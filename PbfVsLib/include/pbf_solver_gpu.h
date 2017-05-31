@@ -19,6 +19,7 @@ namespace pbf {
 		const int3& num_cells_per_dim() const { return num_cells_per_dim_; }
 		int total_num_cells() const { return total_num_cells_; }
 		
+		d_vector<int> cell_is_active_flags;
 		d_vector<int> cell_to_active_cell_indices;
 		d_vector<int> active_cell_num_ptcs;
 		d_vector<int> ptc_begins_in_active_cell;
@@ -26,7 +27,6 @@ namespace pbf {
 
 		// Below are for debug purpose, we do not need to store these vectors.
 		d_vector<int> ptc_to_cell;
-		d_vector<int> cell_is_active_flags;
 		d_vector<int> ptc_offsets_within_cell;
 	private:
 		float3 world_sz_per_dim_;

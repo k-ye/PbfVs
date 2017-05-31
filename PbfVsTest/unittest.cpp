@@ -41,6 +41,11 @@ namespace {
 	// Cell size of the data structure being tested.
 	const float kTestDsCellSize = 1.5f;
 
+	float GenRandomFloat(float lo, float hi) {
+		float result = static_cast<float>(rand()) / static_cast<float>(RAND_MAX / (hi - lo)) + lo;
+		return result;
+	}
+
 	point_t GenRandomPoint() {
 		int x = rand() % kNumCellsPerDim;
 		int y = rand() % kNumCellsPerDim;
@@ -145,7 +150,6 @@ namespace {
 
 		TEST_METHOD(TestCellGridGpu)
 		{
-			using thrust::host_vector;
 			srand(time(nullptr));
 
 			for (int iter = 0; iter < kNumIters; ++iter) {
@@ -153,8 +157,46 @@ namespace {
 			}
 		}
 
+		TEST_METHOD(TestFindNeighbors)
+		{
+			std::vector<float3> h_positions;
+			h_positions.push_back(make_float3(0, 0, 0));
+			auto gen_rand_float3 = [](float lo, float hi) -> float3 {
+				float x = GenRandomFloat(lo, hi);
+				float y = GenRandomFloat(lo, hi);
+				float z = GenRandomFloat(lo, hi);
+				return make_float3(x, y, z);
+			};
+			for (int i = 0; i < 10; ++i) {
+				h_positions.push_back(gen_rand_float3(0, 0.5f));
+			}
+			for (int i = 0; i < 10; ++i) {
+				h_positions.push_back(gen_rand_float3(2.0f, 4.0f));
+			}
+			
+			d_vector<float3> d_positions{ h_positions };
+			float3 world_sz_dim = make_float3(5.0f, 5.0f, 5.0f);
+			CellGridGpu cell_grid{ world_sz_dim, 1.5f /* kTestDsCellSize */};
+			const float cell_sz = cell_grid.cell_size();
+			const int3 num_cells_dim = cell_grid.num_cells_per_dim();
+			const float h = 1.0f;
+
+			UpdateCellGrid(d_positions, &cell_grid);
+			
+			ParticleNeighbors pn;
+			FindParticleNeighbors(d_positions, cell_grid, cell_sz, num_cells_dim, h, &pn);
+			thrust::host_vector<int> h_ptc_num_neighbors{ pn.ptc_num_neighbors };
+			std::stringstream ss;
+			ss << "Num neighbors ref size: " << 10 
+				<< ", cuda computed size: " << h_ptc_num_neighbors[0];
+			auto log_str = ss.str();
+			Logger::WriteMessage(log_str.c_str());
+		}
+
 	private:
 		void TestCellGridGpuOneIter() {
+			using thrust::host_vector;
+			
 			std::vector<float3> h_positions;
 			RandomScatterPoints(&h_positions);
 

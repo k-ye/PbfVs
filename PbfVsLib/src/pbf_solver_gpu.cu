@@ -249,6 +249,7 @@ namespace impl_ {
 	// Count |ptc_num_neighbors|
 	// - |radius|: searching radius
 	__global__ void CountPtcNumNeighborsKernel(const float3* positions, 
+		const int* cell_is_active_flags,
 		const int* cell_to_active_cell_indices, const int* cell_ptc_indices, 
 		const int* ptc_begins_in_active_cell, const int* active_cell_num_ptcs,
 		const int num_ptcs, const float cell_sz, const int3 num_cells_dim,
@@ -270,12 +271,16 @@ namespace impl_ {
 					if (CellOutOfRange(nb_cell, num_cells_dim))
 						continue;
 					int nb_cell_idx = GetCellIndex(nb_cell, num_cells_dim);
+					if (!cell_is_active_flags[nb_cell_idx])
+						continue;
 					const int nb_ac_idx = 
 						cell_to_active_cell_indices[nb_cell_idx];
 					const int ac_num_ptcs = active_cell_num_ptcs[nb_ac_idx];
 					const int nb_ptc_begin = ptc_begins_in_active_cell[nb_ac_idx];
 					for (int offs = 0; offs < ac_num_ptcs; ++offs) {
 						const int ptc_j = cell_ptc_indices[nb_ptc_begin + offs];
+						if (ptc_i == ptc_j)
+							continue;
 						float dist_sqr = DistanceSquare(pos_i, positions[ptc_j]);
 						if (dist_sqr < radius_sqr) {
 							++num_neighbors;
@@ -300,7 +305,8 @@ namespace impl_ {
 
 	// Find neighbor particles and store them in |ptc_neighbor_indices|
 	// - |radius|: searching radius
-	__global__ void FindPtcNeighborIndicesKernel(const float3* positions, 
+	__global__ void FindPtcNeighborIndicesKernel(const float3* positions,
+		const int* cell_is_active_flags,
 		const int* cell_to_active_cell_indices, const int* cell_ptc_indices, 
 		const int* ptc_begins_in_active_cell, const int* active_cell_num_ptcs,
 		const int num_ptcs, const float cell_sz, const int3 num_cells_dim,
@@ -324,12 +330,16 @@ namespace impl_ {
 					if (CellOutOfRange(nb_cell, num_cells_dim))
 						continue;
 					int nb_cell_idx = GetCellIndex(nb_cell, num_cells_dim);
+					if (!cell_is_active_flags[nb_cell_idx])
+						continue;
 					const int nb_ac_idx = 
 						cell_to_active_cell_indices[nb_cell_idx];
 					const int ac_num_ptcs = active_cell_num_ptcs[nb_ac_idx];
 					const int nb_ptc_begin = ptc_begins_in_active_cell[nb_ac_idx];
 					for (int offs = 0; offs < ac_num_ptcs; ++offs) {
 						const int ptc_j = cell_ptc_indices[nb_ptc_begin + offs];
+						if (ptc_i == ptc_j)
+							continue;
 						float dist_sqr = DistanceSquare(pos_i, positions[ptc_j]);
 						if (dist_sqr < radius_sqr) {
 							ptc_neighbor_indices[cur] = ptc_j;
@@ -412,7 +422,6 @@ namespace impl_ {
 		cudaDeviceSynchronize();
 		checkCudaErrors(cudaGetLastError());
 
-		// d_vector<int> cell_is_active_flags(num_cells, 0);
 		d_vector<int>& cell_is_active_flags = cell_grid->cell_is_active_flags;
 		cell_is_active_flags.clear();
 		cell_is_active_flags.resize(num_cells, 0);
@@ -469,7 +478,8 @@ namespace impl_ {
 
 		const int num_ptcs = positions.size();
 		const float3* positions_ptr = raw_pointer_cast(positions.data());
-		const int* cell_to_active_cell_indices_ptr =
+		const int* cell_is_active_flags_ptr = raw_pointer_cast(cell_grid.cell_is_active_flags.data());
+		const int* cell_to_active_cell_indices_ptr = 
 			raw_pointer_cast(cell_grid.cell_to_active_cell_indices.data());
 		const int* cell_ptc_indices_ptr = raw_pointer_cast(cell_grid.cell_ptc_indices.data());
 		const int* ptc_begins_in_active_cell_ptr =
@@ -482,6 +492,7 @@ namespace impl_ {
 		
 		const int num_blocks_ptc = ComputeNumBlocks(num_ptcs);
 		CountPtcNumNeighborsKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(positions_ptr,
+			cell_is_active_flags_ptr,
 			cell_to_active_cell_indices_ptr, cell_ptc_indices_ptr,
 			ptc_begins_in_active_cell_ptr, active_cell_num_ptcs_ptr,
 			num_ptcs, cell_sz, num_cells_dim,
@@ -502,6 +513,7 @@ namespace impl_ {
 		int* ptc_neighbor_indices_ptr = raw_pointer_cast(ptc_neighbor_indices.data());
 		
 		FindPtcNeighborIndicesKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(positions_ptr,
+			cell_is_active_flags_ptr,
 			cell_to_active_cell_indices_ptr, cell_ptc_indices_ptr, ptc_begins_in_active_cell_ptr, 
 			active_cell_num_ptcs_ptr, num_ptcs, cell_sz, num_cells_dim, h, ptc_neighbor_begins_ptr, 
 			ptc_neighbor_indices_ptr, ptc_num_neighbors_ptr /*debug purpose, rm once correct*/);
