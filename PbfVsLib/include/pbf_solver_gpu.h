@@ -35,9 +35,21 @@ namespace pbf {
 		int total_num_cells_;
 	};
 
+	class ParticleNeighbors {
+	public:
+		d_vector<int> ptc_num_neighbors;
+		d_vector<int> ptc_neighbor_begins;
+		d_vector<int> ptc_neighbor_indices;
+	};
+
 	void UpdateCellGrid(const d_vector<float3>& positions, 
 		CellGridGpu* cell_grid);
 
+	void FindParticleNeighbors(const d_vector<float3>& positions,
+		const CellGridGpu& cell_grid, const float cell_sz, const int3& num_cells_dim,
+		const float h, ParticleNeighbors* pn);
+
+	// For test purpose only
 	void Query(const d_vector<float3>& positions, const CellGridGpu& cell_grid,
 		const AABB& range, d_vector<int>* cell_num_ptcs_inside);
 } // namespace pbf

@@ -6,6 +6,7 @@
 #include <thrust\scan.h>
 #include <thrust\execution_policy.h>
 #include <thrust\copy.h>
+#include <thrust\reduce.h>
 
 namespace pbf {
 
@@ -126,13 +127,18 @@ namespace impl_ {
 		float result = x * x + y * y + z * z;
 		return result;
 	}
+	
+	__device__ bool IsInside(const float3& pt, const 
+		float3& min, const float3& max) {
+        bool cond = (min.x <= pt.x) && (pt.x <= max.x) &&
+        (min.y <= pt.y) && (pt.y <= max.y) &&
+        (min.z <= pt.z) && (pt.z <= max.z);
+        return cond;
+	}
+	
 	/////
 	// CellGrid
 	/////
-	void ResetNumPtcsInCell(d_vector<int>* cell_num_ptcs) {
-		const size_t sz = cell_num_ptcs->size();
-		cell_num_ptcs->assign(sz, 0);
-	}
 
 	// - compute |ptc_to_cell| 
 	// - count |cell_num_ptcs|
@@ -298,7 +304,7 @@ namespace impl_ {
 		const int* cell_to_active_cell_indices, const int* cell_ptc_indices, 
 		const int* ptc_begins_in_active_cell, const int* active_cell_num_ptcs,
 		const int num_ptcs, const float cell_sz, const int3 num_cells_dim,
-		const float radius, int* ptc_neighbor_begins, int* ptc_neighbor_indices, 
+		const float radius, const int* ptc_neighbor_begins, int* ptc_neighbor_indices, 
 		const int* ptc_num_neighbors /*debug purpose, rm once correct*/)
 	{
 		const int ptc_i = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -336,6 +342,32 @@ namespace impl_ {
 		// Use GPU assert!
 		// assert((cur - cur_copy) == ptc_num_neighbors[ptc_i]);
 	}
+	
+	__global__ static void QueryCountKernel(const int num_cells, 
+		const float3 range_min, const float3 range_max, const float3* positions, 
+		const int* cell_is_active_flags, const int* cell_to_active_cell_indices,
+		const int* ptc_begins_in_active_cell, const int* active_cell_num_ptcs,
+		const int* cell_ptc_indices, int* cell_num_ptcs_inside) 
+	{
+		int cell_i = (blockDim.x * blockIdx.x) + threadIdx.x;
+		if (cell_i >= num_cells) return;
+		
+		bool is_active = cell_is_active_flags[cell_i];;
+		if (!is_active) return;
+
+		const int ac_idx = cell_to_active_cell_indices[cell_i];
+		const int ptc_begin = ptc_begins_in_active_cell[ac_idx];
+		const int ac_num_ptcs = active_cell_num_ptcs[ac_idx];
+		int num_inside = 0;
+		for (int offs = 0; offs < ac_num_ptcs; ++offs) {
+			int ptc_i = cell_ptc_indices[ptc_begin + offs];
+			if (IsInside(positions[ptc_i], range_min, range_max)) {
+				++num_inside;
+			}
+		}
+		cell_num_ptcs_inside[cell_i] = num_inside;
+	}
+
 } // namespace impl_
 		
 	CellGridGpu::CellGridGpu(float3 world_sz, float cell_sz)
@@ -428,39 +460,53 @@ namespace impl_ {
 		cudaDeviceSynchronize();
 		checkCudaErrors(cudaGetLastError());
 	}
-
-	__device__ bool IsInside(const float3& pt, const 
-		float3& min, const float3& max) {
-        bool cond = (min.x <= pt.x) && (pt.x <= max.x) &&
-        (min.y <= pt.y) && (pt.y <= max.y) &&
-        (min.z <= pt.z) && (pt.z <= max.z);
-        return cond;
-	}
 	
-	__global__ static void QueryCountKernel(const int num_cells, 
-		const float3 range_min, const float3 range_max, const float3* positions, 
-		const int* cell_is_active_flags, const int* cell_to_active_cell_indices,
-		const int* ptc_begins_in_active_cell, const int* active_cell_num_ptcs,
-		const int* cell_ptc_indices, int* cell_num_ptcs_inside) {
-		int cell_i = (blockDim.x * blockIdx.x) + threadIdx.x;
-		if (cell_i >= num_cells) return;
+	void FindParticleNeighbors(const d_vector<float3>& positions, const CellGridGpu& cell_grid, 
+		const float cell_sz, const int3& num_cells_dim, const float h, ParticleNeighbors* pn) 
+	{
+		using namespace impl_;
+		using thrust::raw_pointer_cast;
+
+		const int num_ptcs = positions.size();
+		const float3* positions_ptr = raw_pointer_cast(positions.data());
+		const int* cell_to_active_cell_indices_ptr =
+			raw_pointer_cast(cell_grid.cell_to_active_cell_indices.data());
+		const int* cell_ptc_indices_ptr = raw_pointer_cast(cell_grid.cell_ptc_indices.data());
+		const int* ptc_begins_in_active_cell_ptr =
+			raw_pointer_cast(cell_grid.ptc_begins_in_active_cell.data());
+		const int* active_cell_num_ptcs_ptr = raw_pointer_cast(cell_grid.active_cell_num_ptcs.data());
+		d_vector<int>& ptc_num_neighbors = pn->ptc_num_neighbors;
+		ptc_num_neighbors.clear();
+		ptc_num_neighbors.resize(num_ptcs, 0);
+		int* ptc_num_neighbors_ptr = raw_pointer_cast(ptc_num_neighbors.data());
 		
-		bool is_active = cell_is_active_flags[cell_i];;
-		if (!is_active) return;
+		const int num_blocks_ptc = ComputeNumBlocks(num_ptcs);
+		CountPtcNumNeighborsKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(positions_ptr,
+			cell_to_active_cell_indices_ptr, cell_ptc_indices_ptr,
+			ptc_begins_in_active_cell_ptr, active_cell_num_ptcs_ptr,
+			num_ptcs, cell_sz, num_cells_dim,
+			h, ptc_num_neighbors_ptr);
 
-		const int ac_idx = cell_to_active_cell_indices[cell_i];
-		const int ptc_begin = ptc_begins_in_active_cell[ac_idx];
-		const int ac_num_ptcs = active_cell_num_ptcs[ac_idx];
-		int num_inside = 0;
-		for (int offs = 0; offs < ac_num_ptcs; ++offs) {
-			int ptc_i = cell_ptc_indices[ptc_begin + offs];
-			if (IsInside(positions[ptc_i], range_min, range_max)) {
-				++num_inside;
-			}
+		d_vector<int>& ptc_neighbor_begins = pn->ptc_neighbor_begins;
+		ptc_neighbor_begins.clear();
+		ptc_neighbor_begins.resize(num_ptcs, 0);
+		ComputePtcNeighborBegins(ptc_num_neighbors, &ptc_neighbor_begins);
+		const int* ptc_neighbor_begins_ptr = raw_pointer_cast(ptc_neighbor_begins.data());
+
+		d_vector<int>& ptc_neighbor_indices = pn->ptc_neighbor_indices;
+		{
+			int vec_sz = thrust::reduce(ptc_num_neighbors.begin(), ptc_num_neighbors.end(), 0);
+			ptc_neighbor_indices.clear();
+			ptc_neighbor_indices.resize(vec_sz, 0);
 		}
-		cell_num_ptcs_inside[cell_i] = num_inside;
+		int* ptc_neighbor_indices_ptr = raw_pointer_cast(ptc_neighbor_indices.data());
+		
+		FindPtcNeighborIndicesKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(positions_ptr,
+			cell_to_active_cell_indices_ptr, cell_ptc_indices_ptr, ptc_begins_in_active_cell_ptr, 
+			active_cell_num_ptcs_ptr, num_ptcs, cell_sz, num_cells_dim, h, ptc_neighbor_begins_ptr, 
+			ptc_neighbor_indices_ptr, ptc_num_neighbors_ptr /*debug purpose, rm once correct*/);
 	}
-	
+
 	void Query(const d_vector<float3>& positions, const CellGridGpu& cell_grid, 
 		const AABB& range, d_vector<int>* cell_num_ptcs_inside) {
 		using namespace impl_;
