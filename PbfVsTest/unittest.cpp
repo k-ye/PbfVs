@@ -124,7 +124,7 @@ namespace {
 		}
 
 		void RandomScatterPoints() {
-			Assert::AreEqual(kNumPoints, ps_.NumParticles());
+			Assert::AreEqual(kNumPoints, (unsigned)ps_.NumParticles());
 			
 			ptcs_inside_aabb_ref_.clear();
 			for (unsigned ptc_i = 0; ptc_i < kNumPoints; ++ptc_i) {
