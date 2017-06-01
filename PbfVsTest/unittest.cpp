@@ -157,43 +157,6 @@ namespace {
 			}
 		}
 
-		TEST_METHOD(TestFindNeighbors)
-		{
-			std::vector<float3> h_positions;
-			h_positions.push_back(make_float3(0, 0, 0));
-			auto gen_rand_float3 = [](float lo, float hi) -> float3 {
-				float x = GenRandomFloat(lo, hi);
-				float y = GenRandomFloat(lo, hi);
-				float z = GenRandomFloat(lo, hi);
-				return make_float3(x, y, z);
-			};
-			for (int i = 0; i < 10; ++i) {
-				h_positions.push_back(gen_rand_float3(0, 0.5f));
-			}
-			for (int i = 0; i < 10; ++i) {
-				h_positions.push_back(gen_rand_float3(2.0f, 4.0f));
-			}
-			
-			d_vector<float3> d_positions{ h_positions };
-			float3 world_sz_dim = make_float3(5.0f, 5.0f, 5.0f);
-			CellGridGpu cell_grid{ world_sz_dim, 1.5f /* kTestDsCellSize */};
-			const float cell_sz = cell_grid.cell_size();
-			const int3 num_cells_dim = cell_grid.num_cells_per_dim();
-			const float h = 1.0f;
-
-			UpdateCellGrid(d_positions, &cell_grid);
-			
-			ParticleNeighbors pn;
-			FindParticleNeighbors(d_positions, cell_grid, h, &pn);
-			thrust::host_vector<int> h_ptc_num_neighbors{ pn.ptc_num_neighbors };
-			std::stringstream ss;
-			ss << "Num neighbors ref size: " << 10 
-				<< ", cuda computed size: " << h_ptc_num_neighbors[0];
-			auto log_str = ss.str();
-			Logger::WriteMessage(log_str.c_str());
-			Assert::AreEqual(10, h_ptc_num_neighbors[0]);
-		}
-
 	private:
 		void TestCellGridGpuOneIter() {
 			using thrust::host_vector;
@@ -254,5 +217,76 @@ namespace {
 
 		AABB query_aabb_;
 		std::unordered_set<size_t> ptcs_inside_aabb_ref_;
+	};
+
+	TEST_CLASS(FindNeighborsTest) {
+	private:
+		const float kWorldSize = 4.0f;
+		const float kH = 3.2f;
+		const float kTestDsCellSize = kH + 0.5f;
+		
+		float3 init_ptc_;
+		std::unordered_set<size_t> neighbor_ptcs_ref_;
+		
+		float3 GenRandomPos() const {
+			float x = GenRandomFloat(0.1f, this->kWorldSize - 0.1f);
+			float y = GenRandomFloat(0.1f, this->kWorldSize - 0.1f);
+			float z = GenRandomFloat(0.1f, this->kWorldSize - 0.1f);
+			return make_float3(x, y, z);
+		};
+
+		void InitPositions(std::vector<float3>* positions) {
+			auto DistSqr = [](const float3& a, const float3& b) -> float {
+				float x = (a.x - b.x);
+				float y = (a.y - b.y);
+				float z = (a.z - b.z);
+				float result = x * x + y * y + z * z;
+				return result;
+			};
+			
+			const float h_sqr = kH * kH;
+			init_ptc_ = GenRandomPos();
+			positions->push_back(init_ptc_);
+			for (size_t i = 1; i < 30; ++i) {
+				float3 ptc = GenRandomPos();
+				positions->push_back(ptc);
+				if (DistSqr(ptc, init_ptc_) < h_sqr) {
+					neighbor_ptcs_ref_.insert(i);
+				}
+			}
+		}
+
+		void TestOneIter() {
+			std::vector<float3> h_positions;
+			neighbor_ptcs_ref_.clear();
+			InitPositions(&h_positions);
+			
+			d_vector<float3> d_positions{ h_positions };
+			float3 world_sz_dim = make_float3(this->kWorldSize, this->kWorldSize, this->kWorldSize);
+			CellGridGpu cell_grid{ world_sz_dim, this->kTestDsCellSize };
+
+			UpdateCellGrid(d_positions, &cell_grid);
+			
+			ParticleNeighbors pn;
+			FindParticleNeighbors(d_positions, cell_grid, kH, &pn);
+			thrust::host_vector<int> h_ptc_num_neighbors{ pn.ptc_num_neighbors };
+			const int num_neigbors_ref = neighbor_ptcs_ref_.size();
+			std::stringstream ss;
+			ss << "Num neighbors ref size: " << num_neigbors_ref
+				<< ", cuda computed size: " << h_ptc_num_neighbors[0] << std::endl;
+			auto log_str = ss.str();
+			Logger::WriteMessage(log_str.c_str());
+			Assert::AreEqual(num_neigbors_ref, h_ptc_num_neighbors[0]);
+		}
+
+	public:
+		TEST_METHOD(TestFindNeighbors)
+		{
+			srand(time(nullptr));
+
+			for (int iter = 0; iter < kNumIters; ++iter) {
+				TestOneIter();
+			}
+		}
 	};
 }
