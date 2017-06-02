@@ -182,7 +182,7 @@ namespace pbf {
 		
 	float PbfSolver::ComputScorr_(const vec_t pos_diff_ji) const {
 		// Eq (13)
-		float x = kernel_.Evaluate(pos_diff_ji) / kernel_.Evaluate(corr_delta_q_coeff_);
+		float x = kernel_.Evaluate(pos_diff_ji) / kernel_.Evaluate(corr_delta_q_coeff_ * h_);
 		float result = (-corr_k_) * std::pow(x, (float)corr_n_);
 		return result;
 	}
