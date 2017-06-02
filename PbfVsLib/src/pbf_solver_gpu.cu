@@ -622,13 +622,56 @@ namespace impl_ {
 		lambdas[ptc_i] = lambda_i;
 	}
 	
+	__device__ float ComputeScorr(const float3 pos_ji, const float h, 
+		const float corr_delta_q_coeff, const float corr_k, const float corr_n) {
+		// Eq (13)
+		float x = Poly6Value(pos_ji, h) / Poly6Value(corr_delta_q_coeff * h, h);
+		float result = (-corr_k) * pow(x, corr_n);
+		return result;
+	}
+	
+	__global__ static void ComputeDeltaPositionsKernel(const float3* positions,
+		const int* ptc_num_neighbors, const int* ptc_neighbor_begins, const int* ptc_neighbor_indices, 
+		const float* lambdas, const int num_ptcs, const float h, const float rho_0_recpr,
+		const float corr_delta_q_coeff, const float corr_k, const float corr_n, float3* delta_positions) 
+	{
+		const int ptc_i = (blockDim.x * blockIdx.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
+
+		const int num_nbs = ptc_num_neighbors[ptc_i];
+		const int nb_begin = ptc_neighbor_begins[ptc_i];
+		const float3 pos_i = positions[ptc_i];
+		const float lambda_i = lambdas[ptc_i];
+
+		float3 delta_pos_i = make_float3(0.0f);
+		for (int offs = 0; offs < num_nbs; ++offs) {
+			const int ptc_j = ptc_neighbor_indices[nb_begin + offs];
+			const float lambda_j = lambdas[ptc_j];
+			const float3 pos_ji = pos_i - positions[ptc_j];
+			const float scorr_ij = ComputeScorr(pos_ji, h, corr_delta_q_coeff, corr_k, corr_n);
+			delta_pos_i += (lambda_i + lambda_j + scorr_ij) * SpikyGradient(pos_ji, h);
+		}
+		delta_pos_i *= rho_0_recpr;
+		delta_positions[ptc_i] = delta_pos_i;
+	}
+
 	void PbfSolverGpu::ComputeLambdas_() {
-		const int num_ptcs = ps_->NumParticles();
-		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs);
+		const int num_ptcs = NumPtcs_();
 		float* lambdas_ptr = thrust::raw_pointer_cast(lambdas_.data());
+		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs);
 		ComputeLambdaKernel<<<num_blocks_ptc, kNumThreadPerBlock>>> (
-			d_positions_, ptc_nb_recs_.ptc_num_neighbors_ptr(),
-			ptc_nb_recs_.ptc_neighbor_begins_ptr(), ptc_nb_recs_.ptc_neighbor_indices_ptr(),
-			num_ptcs, h_, mass_, rho_0_recpr_, epsilon_, lambdas_ptr);
+			d_positions_, ptc_nb_recs_.ptc_num_neighbors_ptr(), ptc_nb_recs_.ptc_neighbor_begins_ptr(), 
+			ptc_nb_recs_.ptc_neighbor_indices_ptr(), num_ptcs, h_, mass_, rho_0_recpr_, epsilon_, lambdas_ptr);
+	}
+	
+	void PbfSolverGpu::ComputeDeltaPositions_() {
+		const int num_ptcs = NumPtcs_();
+		const float* lambdas_ptr = thrust::raw_pointer_cast(lambdas_.data());
+		float3* delta_positions_ptr = thrust::raw_pointer_cast(delta_positions_.data());
+		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs);
+		ComputeDeltaPositionsKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(
+			d_positions_, ptc_nb_recs_.ptc_num_neighbors_ptr(), ptc_nb_recs_.ptc_neighbor_begins_ptr(),
+			ptc_nb_recs_.ptc_neighbor_indices_ptr(),  lambdas_ptr, num_ptcs, h_, rho_0_recpr_, 
+			corr_delta_q_coeff_, corr_k_, corr_n_, delta_positions_ptr);
 	}
 } // namespace pbf

@@ -70,7 +70,10 @@ namespace pbf {
 		void Update(float dt) override;
 
 	private:
+		inline int NumPtcs_() const { return ps_->NumParticles(); }
 		void ComputeLambdas_();
+		
+		void ComputeDeltaPositions_();
 		
 		float3* d_positions_;
 		float3* d_velocities_;
