@@ -71,7 +71,9 @@ namespace pbf {
 
 	private:
 		inline int NumPtcs_() const { return ps_->NumParticles(); }
-		
+
+		void ApplyGravity_(const float dt);
+
 		void ImposeBoundaryConstraint_();
 		
 		void ComputeLambdas_();

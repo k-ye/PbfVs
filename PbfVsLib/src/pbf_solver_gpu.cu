@@ -556,7 +556,25 @@ namespace impl_ {
 			ptc_begins_in_active_cell_ptr, active_cell_num_ptcs_ptr,
 			cell_ptc_indices_ptr, cell_num_ptcs_inside_ptr);
 	}
+
+#define GRAVITY_Y -9.8f
+	__global__ static void ApplyGravityKernel(const int num_ptcs, const float dt,
+		float3* positions, float3* velocities) 
+	{
+		const int ptc_i = (blockDim.x * blockIdx.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
+
+		float3 pos_i = positions[ptc_i];
+		float3 vel_i = velocities[ptc_i];
+
+		vel_i.y += GRAVITY_Y * dt;
+		pos_i += vel_i * dt;
 		
+		positions[ptc_i] = pos_i;
+		velocities[ptc_i] = vel_i;
+	}
+#undef GRAVITY_Y
+
 	__global__ static void ImposeBoundaryConstraintKernel(const int num_ptcs, const float world_size,
 		float3* positions, float3* velocities)
 	{
@@ -686,7 +704,13 @@ namespace impl_ {
 	void PbfSolverGpu::Update(float dt) {
 
 	}
-		
+	
+	void PbfSolverGpu::ApplyGravity_(const float dt) {
+		const int num_ptcs = NumPtcs_();
+		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs);
+		ApplyGravityKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(num_ptcs, dt, d_positions_, d_velocities_);
+	}
+
 	void PbfSolverGpu::ImposeBoundaryConstraint_() {
 		const int num_ptcs = NumPtcs_();
 		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs);
