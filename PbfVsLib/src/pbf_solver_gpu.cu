@@ -557,10 +557,27 @@ namespace impl_ {
 			cell_ptc_indices_ptr, cell_num_ptcs_inside_ptr);
 	}
 		
-	void PbfSolverGpu::Update(float dt) {
+	__global__ static void ImposeBoundaryConstraintKernel(const int num_ptcs, const float world_size,
+		float3* positions, float3* velocities)
+	{
+		const int ptc_i = (blockDim.x * blockIdx.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
 
+		float3 pos_i = positions[ptc_i];
+		float3 vel_i = velocities[ptc_i];
+#define IMPOSE_ON_DIM(D) \
+	if (pos_i.##D <= 0.0f || pos_i.##D >= world_size) { \
+		vel_i.##D = 0.0f; \
+		pos_i.##D = max(0.0f, min(world_size, pos_i.##D)); \
 	}
-	
+		IMPOSE_ON_DIM(x);
+		IMPOSE_ON_DIM(y);
+		IMPOSE_ON_DIM(z);
+#undef IMPOSE_ON_DIM
+
+		positions[ptc_i] = pos_i;
+		velocities[ptc_i] = vel_i;
+	}
 #define PI_FLT (float)3.14159265358979323846264338327950288
 	
 	__device__ constexpr float kPoly6Factor() { return (315.0f / 64.0f / PI_FLT); }
@@ -654,6 +671,28 @@ namespace impl_ {
 		delta_pos_i *= rho_0_recpr;
 		delta_positions[ptc_i] = delta_pos_i;
 	}
+	
+	__global__ static void ApplyDeltaPositionsKernel(const float3* delta_positions,
+		const int num_ptcs, float3* positions)
+	{
+		const int ptc_i = (blockDim.x * blockIdx.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
+		
+		float3 pos_i = positions[ptc_i];
+		pos_i += delta_positions[ptc_i];
+		positions[ptc_i] = pos_i;
+	}
+	
+	void PbfSolverGpu::Update(float dt) {
+
+	}
+		
+	void PbfSolverGpu::ImposeBoundaryConstraint_() {
+		const int num_ptcs = NumPtcs_();
+		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs);
+		ImposeBoundaryConstraintKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(
+			num_ptcs, world_size_, d_positions_, d_velocities_);
+	}
 
 	void PbfSolverGpu::ComputeLambdas_() {
 		const int num_ptcs = NumPtcs_();
@@ -673,5 +712,13 @@ namespace impl_ {
 			d_positions_, ptc_nb_recs_.ptc_num_neighbors_ptr(), ptc_nb_recs_.ptc_neighbor_begins_ptr(),
 			ptc_nb_recs_.ptc_neighbor_indices_ptr(),  lambdas_ptr, num_ptcs, h_, rho_0_recpr_, 
 			corr_delta_q_coeff_, corr_k_, corr_n_, delta_positions_ptr);
+	}
+	
+	void PbfSolverGpu::ApplyDeltaPositions_() {
+		const int num_ptcs = NumPtcs_();
+		const float3* delta_positions_ptr = thrust::raw_pointer_cast(delta_positions_.data());
+		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs);
+		ApplyDeltaPositionsKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(
+			delta_positions_ptr, num_ptcs, d_positions_);
 	}
 } // namespace pbf

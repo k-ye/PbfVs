@@ -71,10 +71,15 @@ namespace pbf {
 
 	private:
 		inline int NumPtcs_() const { return ps_->NumParticles(); }
+		
+		void ImposeBoundaryConstraint_();
+		
 		void ComputeLambdas_();
 		
 		void ComputeDeltaPositions_();
 		
+		void ApplyDeltaPositions_();
+
 		float3* d_positions_;
 		float3* d_velocities_;
 		
