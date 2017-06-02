@@ -267,7 +267,7 @@ namespace {
 
 			UpdateCellGrid(d_positions, &cell_grid);
 			
-			ParticleNeighbors pn;
+			GpuParticleNeighbors pn;
 			FindParticleNeighbors(d_positions, cell_grid, kH, &pn);
 			thrust::host_vector<int> h_ptc_num_neighbors{ pn.ptc_num_neighbors };
 			const int num_neigbors_ref = neighbor_ptcs_ref_.size();

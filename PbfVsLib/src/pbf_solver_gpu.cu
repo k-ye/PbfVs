@@ -9,13 +9,12 @@
 #include <thrust\reduce.h>
 
 namespace pbf {
-
-float3 Convert(const point_t& pt) {
-	return make_float3(pt.x, pt.y, pt.z);
-}
+	constexpr int kNumThreadPerBlock = 256;
+	
+	float3 Convert(const point_t& pt) { return make_float3(pt.x, pt.y, pt.z); }
 
 namespace impl_ {
-	constexpr int kNumThreadPerBlock = 256;
+
 	
 	// ParticleSystemGpu
 	//
@@ -471,7 +470,7 @@ namespace impl_ {
 	}
 	
 	void FindParticleNeighbors(const d_vector<float3>& positions, const CellGridGpu& cell_grid, 
-		const float h, ParticleNeighbors* pn) 
+		const float h, GpuParticleNeighbors* pn) 
 	{
 		using namespace impl_;
 		using thrust::raw_pointer_cast;
@@ -556,5 +555,80 @@ namespace impl_ {
 			cell_is_active_flags_ptr, cell_to_active_cell_indices_ptr,
 			ptc_begins_in_active_cell_ptr, active_cell_num_ptcs_ptr,
 			cell_ptc_indices_ptr, cell_num_ptcs_inside_ptr);
+	}
+		
+	void PbfSolverGpu::Update(float dt) {
+
+	}
+	
+#define PI_FLT (float)3.14159265358979323846264338327950288
+	
+	__device__ constexpr float kPoly6Factor() { return (315.0f / 64.0f / PI_FLT); }
+	
+	__device__ static float Poly6Value(const float s, const float h) {
+		if (s < 0.0f || s >= h) return 0.0f;
+
+		float x = (h * h - s * s) / (h * h * h);
+		float result = kPoly6Factor() * x * x * x;
+		return result;
+	}
+
+	__device__ static float Poly6Value(const float3 r, const float h) {
+		float r_len = length(r);
+		return Poly6Value(r_len, h);
+	}
+	
+	__device__ constexpr float kSpikyGradFactor() { return (-45.0f / PI_FLT); }
+	
+	__device__ static float3 SpikyGradient(const float3 r, const float h) {
+		float r_len = length(r);
+		if (r_len <= 0.0f || r_len >= h) return make_float3(0.0f);
+
+		float x = (h - r_len) / (h * h * h);
+		float g_factor = kSpikyGradFactor() * x * x;
+		float3 result = normalize(r) * g_factor;
+		return result;
+	}
+#undef PI_FLT
+	
+	__global__ static void ComputeLambdaKernel(const float3* positions, const int* ptc_num_neighbors,
+		const int* ptc_neighbor_begins, const int* ptc_neighbor_indices, const int num_ptcs,
+		const float h, const float mass, const float rho_0_recpr, const float epsilon, float* lambdas) 
+	{
+		const int ptc_i = (blockDim.x * blockIdx.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
+
+		const int num_nbs = ptc_num_neighbors[ptc_i];
+		const int nb_begin = ptc_neighbor_begins[ptc_i];
+		const float3 pos_i = positions[ptc_i];
+
+		float3 gradient_i = make_float3(0.0f);
+		float sum_gradient = 0.0f;
+		float density_constraint = 0.0f;
+		for (int offs = 0; offs < num_nbs; ++offs) {
+			const int ptc_j = ptc_neighbor_indices[nb_begin + offs];
+			const float3 pos_ji = pos_i - positions[ptc_j];
+			
+			const float3 gradient_j = SpikyGradient(pos_ji, h);
+			sum_gradient += dot(gradient_j, gradient_j);
+			gradient_i += gradient_j;
+			
+			density_constraint += mass * Poly6Value(pos_ji, h);
+		}
+		sum_gradient += dot(gradient_i, gradient_i);
+		density_constraint = (density_constraint * rho_0_recpr) - 1.0f;
+
+		const float lambda_i = (-density_constraint) / (sum_gradient + epsilon);
+		lambdas[ptc_i] = lambda_i;
+	}
+	
+	void PbfSolverGpu::ComputeLambdas_() {
+		const int num_ptcs = ps_->NumParticles();
+		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs);
+		float* lambdas_ptr = thrust::raw_pointer_cast(lambdas_.data());
+		ComputeLambdaKernel<<<num_blocks_ptc, kNumThreadPerBlock>>> (
+			d_positions_, ptc_nb_recs_.ptc_num_neighbors_ptr(),
+			ptc_nb_recs_.ptc_neighbor_begins_ptr(), ptc_nb_recs_.ptc_neighbor_indices_ptr(),
+			num_ptcs, h_, mass_, rho_0_recpr_, epsilon_, lambdas_ptr);
 	}
 } // namespace pbf

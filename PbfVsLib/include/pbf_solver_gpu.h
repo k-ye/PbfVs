@@ -3,7 +3,9 @@
 
 #include <thrust\device_vector.h>
 #include <thrust\reduce.h>
+
 #include "aabb.h"
+#include "pbf_solver_base.h"
 
 namespace pbf {
 	template <typename T>
@@ -35,22 +37,55 @@ namespace pbf {
 		int total_num_cells_;
 	};
 
-	class ParticleNeighbors {
+	class GpuParticleNeighbors {
 	public:
+		// neighbors
 		d_vector<int> ptc_num_neighbors;
 		d_vector<int> ptc_neighbor_begins;
 		d_vector<int> ptc_neighbor_indices;
-	};
 
+		inline int* ptc_num_neighbors_ptr() {
+			return thrust::raw_pointer_cast(ptc_num_neighbors.data());
+		}
+		
+		inline int* ptc_neighbor_begins_ptr() {
+			return thrust::raw_pointer_cast(ptc_neighbor_begins.data());
+		}
+
+		inline int* ptc_neighbor_indices_ptr() {
+			return thrust::raw_pointer_cast(ptc_neighbor_indices.data());
+		}
+	};
+	
 	void UpdateCellGrid(const d_vector<float3>& positions, 
 		CellGridGpu* cell_grid);
 
 	void FindParticleNeighbors(const d_vector<float3>& positions,
-		const CellGridGpu& cell_grid, const float h, ParticleNeighbors* pn);
+		const CellGridGpu& cell_grid, const float h, GpuParticleNeighbors* pn);
+
+	class PbfSolverGpu : public PbfSolverBase {
+	public:
+		PbfSolverGpu() : PbfSolverBase() {}
+		
+		void Update(float dt) override;
+
+	private:
+		void ComputeLambdas_();
+		
+		float3* d_positions_;
+		float3* d_velocities_;
+		
+		// particle records 
+		GpuParticleNeighbors ptc_nb_recs_;
+		d_vector<float3> old_positions_;
+		d_vector<float> lambdas_;
+		d_vector<float3> delta_positions_;
+	};
 
 	// For test purpose only
 	void Query(const d_vector<float3>& positions, const CellGridGpu& cell_grid,
 		const AABB& range, d_vector<int>* cell_num_ptcs_inside);
+
 } // namespace pbf
 
 #endif // pbf_solver_gpu_h
