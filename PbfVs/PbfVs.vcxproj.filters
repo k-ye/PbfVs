@@ -4,10 +4,18 @@
     <Filter Include="Source Files">
       <UniqueIdentifier>{39814b65-fa68-42e3-a2bf-c334e0953b65}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Config">
+      <UniqueIdentifier>{1c3538c3-93e1-42c2-b8a0-7d5d9833bb67}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="main.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Config\config.txt">
+      <Filter>Config</Filter>
+    </Text>
   </ItemGroup>
 </Project>
