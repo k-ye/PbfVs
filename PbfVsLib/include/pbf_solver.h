@@ -39,9 +39,9 @@ namespace pbf
 
 		float ComputScorr_(const vec_t vec_ji) const;
 
-		vec_t ComputeVorticityCorrForce_(size_t p_i) const;
-
 		vec_t ComputeVorticity_(size_t p_i) const;
+
+		vec_t ComputeVorticityCorrForce_(size_t p_i) const;
 		
 		vec_t ComputeEta_(size_t p_i) const;
 

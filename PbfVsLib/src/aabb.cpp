@@ -2,8 +2,7 @@
 
 #include "../include/aabb.h"
 
-namespace pbf
-{
+namespace pbf {
     AABB::AABB() : min_(0.0f), max_(0.0f) { }
     
     AABB::AABB(const point_t& mn, const point_t& mx)

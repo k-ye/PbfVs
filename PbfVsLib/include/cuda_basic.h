@@ -9,6 +9,7 @@
 #include <string>
 #include <sstream>
 #include <stdexcept>
+#include <iostream>
 
 template<typename T>
 void check(T err, const char* const func, const char* const file, 
@@ -16,7 +17,8 @@ void check(T err, const char* const func, const char* const file,
 	if (err != cudaSuccess) {
 		std::stringstream ss;
 		ss << "CUDA error at: " << file << ":" << line << std::endl
-			<< cudaGetErrorString(err) << " " << func << std::endl;
+			<< cudaGetErrorString(err) << " " << func;
+		std::cerr << ss.str() << std::endl;
 		throw std::runtime_error(ss.str().c_str());
 		exit(1);
 	}

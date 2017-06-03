@@ -60,8 +60,9 @@ namespace pbf {
 			}
 		}
 
-		// Update velocity
 		ImposeBoundaryConstraint_();
+		
+		// Update velocity
 		for (size_t p_i = 0; p_i < ps_->NumParticles(); ++p_i) {
 			auto ptc_i = ps_->Get(p_i);
 			const auto old_pos_i = ptc_records_[p_i].old_pos;
@@ -207,18 +208,6 @@ namespace pbf {
 		float result = (-corr_k_) * std::pow(x, (float)corr_n_);
 		return result;
 	}
-		
-	vec_t PbfSolver::ComputeVorticityCorrForce_(size_t p_i) const {
-		// Eq (16)
-		vec_t eta = ComputeEta_(p_i);
-		float eta_len = glm::length(eta);
-		if (eta_len <= kFloatEpsilon)
-			return vec_t{ 0.0f };
-		eta = glm::normalize(eta);
-		const auto omega_i = ptc_records_[p_i].vorticity;
-		vec_t result = (vorticity_epsilon_ * glm::cross(eta, omega_i));
-		return result;
-	}
 
 	vec_t PbfSolver::ComputeVorticity_(size_t p_i) const {
 		// Eq (15)
@@ -234,6 +223,18 @@ namespace pbf {
 			const vec_t gradient = kernel_.Gradient(pos_i - pos_j);
 			result += glm::cross(vel_diff_ij, gradient);
 		}
+		return result;
+	}
+		
+	vec_t PbfSolver::ComputeVorticityCorrForce_(size_t p_i) const {
+		// Eq (16)
+		vec_t eta = ComputeEta_(p_i);
+		float eta_len = glm::length(eta);
+		if (eta_len <= kFloatEpsilon)
+			return vec_t{ 0.0f };
+		eta = glm::normalize(eta);
+		const auto omega_i = ptc_records_[p_i].vorticity;
+		vec_t result = (vorticity_epsilon_ * glm::cross(eta, omega_i));
 		return result;
 	}
 
