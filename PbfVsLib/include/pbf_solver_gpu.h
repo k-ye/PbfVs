@@ -71,12 +71,20 @@ namespace pbf {
 
 	private:
 		// overrides		
+		void CustomConfigure_(const PbfSolverConfig& config) override;
+		
 		void CustomInitPs_() override;
 
 		// helpers
+		void ResetParticleRecords_();
+
+		void RecordOldPositions_();
+
 		void ApplyGravity_(const float dt);
 
 		void ImposeBoundaryConstraint_();
+		
+		void FindNeighbors_();
 		
 		void ComputeLambdas_();
 		
@@ -84,9 +92,13 @@ namespace pbf {
 		
 		void ApplyDeltaPositions_();
 
+		void UpdateVelocities_(const float dt);
+
 		inline float3* PositionsPtr_() { return thrust::raw_pointer_cast(d_positions_.data()); }
 		inline float3* VelocitiesPtr_() { return thrust::raw_pointer_cast(d_velocities_.data()); }
+	
 	private:
+		float cell_grid_size_;
 		int num_ptcs_;
 
 		d_vector<float3> d_positions_;

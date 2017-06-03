@@ -6,6 +6,7 @@
 #include "include\sh_position_getter.h"
 #include "include\spatial_hash.h"
 #include "include\cuda_basic.h"
+#include "include\helper_math.h"
 
 #include "include\pbf_solver_gpu.h"
 
@@ -165,7 +166,7 @@ namespace {
 			RandomScatterPoints(&h_positions);
 
 			d_vector<float3> d_positions{ h_positions };
-			float3 world_sz_dim = make_float3(kWorldSize, kWorldSize, kWorldSize);
+			float3 world_sz_dim = make_float3(kWorldSize);
 			CellGridGpu cell_grid{ world_sz_dim, kTestDsCellSize };
 
 			UpdateCellGrid(d_positions, &cell_grid);
@@ -262,7 +263,7 @@ namespace {
 			InitPositions(&h_positions);
 			
 			d_vector<float3> d_positions{ h_positions };
-			float3 world_sz_dim = make_float3(this->kWorldSize, this->kWorldSize, this->kWorldSize);
+			float3 world_sz_dim = make_float3(this->kWorldSize);
 			CellGridGpu cell_grid{ world_sz_dim, this->kTestDsCellSize };
 
 			UpdateCellGrid(d_positions, &cell_grid);

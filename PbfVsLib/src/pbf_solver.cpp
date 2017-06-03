@@ -26,6 +26,7 @@ namespace pbf {
 	}
 	
 	void PbfSolver::Update(float dt) {
+		// reset the particle records
 		ResetParticleRecords_();
 		RecordOldPositions_();
 

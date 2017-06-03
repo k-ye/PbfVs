@@ -394,11 +394,12 @@ namespace impl_ {
 		using thrust::raw_pointer_cast;
 		using namespace impl_;
 
+		// extract necessary params
 		const int num_ptcs = positions.size();
 		const int num_cells = cell_grid->total_num_cells();
 
+		// extract necessary pointers
 		const float3* positions_ptr = raw_pointer_cast(positions.data());
-		// d_vector<int> ptc_to_cell(num_ptcs, 0);
 		d_vector<int>& ptc_to_cell = cell_grid->ptc_to_cell;
 		ptc_to_cell.clear();
 		ptc_to_cell.resize(num_ptcs, 0);
@@ -474,11 +475,11 @@ namespace impl_ {
 	{
 		using namespace impl_;
 		using thrust::raw_pointer_cast;
-		
+		// extract necessary params
 		const float cell_sz = cell_grid.cell_size();
 		const int3 num_cells_dim = cell_grid.num_cells_per_dim();
 		const int num_ptcs = positions.size();
-
+		// extract necessary pointers
 		const float3* positions_ptr = raw_pointer_cast(positions.data());
 		const int* cell_is_active_flags_ptr = raw_pointer_cast(cell_grid.cell_is_active_flags.data());
 		const int* cell_to_active_cell_indices_ptr = 
@@ -487,12 +488,15 @@ namespace impl_ {
 		const int* ptc_begins_in_active_cell_ptr =
 			raw_pointer_cast(cell_grid.ptc_begins_in_active_cell.data());
 		const int* active_cell_num_ptcs_ptr = raw_pointer_cast(cell_grid.active_cell_num_ptcs.data());
+
 		d_vector<int>& ptc_num_neighbors = pn->ptc_num_neighbors;
+		// make sure we allocate memory first 
 		ptc_num_neighbors.clear();
 		ptc_num_neighbors.resize(num_ptcs, 0);
 		int* ptc_num_neighbors_ptr = raw_pointer_cast(ptc_num_neighbors.data());
 		
 		const int num_blocks_ptc = ComputeNumBlocks(num_ptcs);
+		// First step, count how many neighbors each particle has
 		CountPtcNumNeighborsKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(positions_ptr,
 			cell_is_active_flags_ptr,
 			cell_to_active_cell_indices_ptr, cell_ptc_indices_ptr,
@@ -502,12 +506,15 @@ namespace impl_ {
 		cudaDeviceSynchronize();
 		checkCudaErrors(cudaGetLastError());
 		
+		// make sure we allocate memory first 
 		d_vector<int>& ptc_neighbor_begins = pn->ptc_neighbor_begins;
 		ptc_neighbor_begins.clear();
 		ptc_neighbor_begins.resize(num_ptcs, 0);
+		
 		ComputePtcNeighborBegins(ptc_num_neighbors, &ptc_neighbor_begins);
 		const int* ptc_neighbor_begins_ptr = raw_pointer_cast(ptc_neighbor_begins.data());
 
+		// make sure we allocate memory first 
 		d_vector<int>& ptc_neighbor_indices = pn->ptc_neighbor_indices;
 		{
 			int vec_sz = thrust::reduce(ptc_num_neighbors.begin(), ptc_num_neighbors.end(), 0);
@@ -515,7 +522,8 @@ namespace impl_ {
 			ptc_neighbor_indices.resize(vec_sz, 0);
 		}
 		int* ptc_neighbor_indices_ptr = raw_pointer_cast(ptc_neighbor_indices.data());
-		
+
+		// Second step, record the neighbor indices for each particle
 		FindPtcNeighborIndicesKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(positions_ptr,
 			cell_is_active_flags_ptr,
 			cell_to_active_cell_indices_ptr, cell_ptc_indices_ptr, ptc_begins_in_active_cell_ptr, 
@@ -700,20 +708,78 @@ namespace impl_ {
 		pos_i += delta_positions[ptc_i];
 		positions[ptc_i] = pos_i;
 	}
+
+	__global__ static void UpdateVelocitiesKernel(const float3* old_positions, const float3* new_positions,
+		const int num_ptcs, const float dt, float3* velocities) 
+	{
+		const int ptc_i = (blockDim.x * blockIdx.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
+		
+		const float3 old_pos_i = old_positions[ptc_i];
+		const float3 new_pos_i = new_positions[ptc_i];
+		const float3 new_vel_i = (new_pos_i - old_pos_i) / dt;
+		velocities[ptc_i] = new_vel_i;
+	}
+
+	void PbfSolverGpu::CustomConfigure_(const PbfSolverConfig& config) {
+		cell_grid_size_ = config.spatial_hash_cell_size;
+	}
 	
 	void PbfSolverGpu::CustomInitPs_() {
+		// cache num of particles
 		num_ptcs_ = ps_->NumParticles();
+
+		// copy the positions/velocities to the device memory.
+		//
+		// This is only needed once, later on after every update,
+		// we only need to copy the most up-to-date data from the
+		// device memory back to each particle. This is because
+		// PbfSolverGpu is the only one who modifies the particles'
+		// data (position/velocity).
 		for (size_t p_i = 0; p_i < num_ptcs_; ++p_i) {
 			auto ptc_i = ps_->Get(p_i);
 			d_positions_.push_back(Convert(ptc_i.position()));
 			d_velocities_.push_back(Convert(ptc_i.velocity()));
 		}
+		
+		// init particle records
+		old_positions_.resize(num_ptcs_, make_float3(0.0f));
+		lambdas_.resize(num_ptcs_, 0.0f);
+		delta_positions_.resize(num_ptcs_, make_float3(0.0f));
 	}
 	
 	void PbfSolverGpu::Update(float dt) {
+		ResetParticleRecords_();
+		RecordOldPositions_();
 
+		ApplyGravity_(dt);
+		ImposeBoundaryConstraint_();
+		
+		FindNeighbors_();
+		
+		for (unsigned itr = 0; itr < num_iters_; ++itr) {
+			ComputeLambdas_();
+			
+			ComputeDeltaPositions_();
+			ApplyDeltaPositions_();
+		}
+		
+		ImposeBoundaryConstraint_();
+		UpdateVelocities_(dt);
 	}
 	
+	void PbfSolverGpu::ResetParticleRecords_() {
+		using thrust::fill;
+		
+		fill(thrust::device, old_positions_.begin(), old_positions_.end(), make_float3(0.0f));
+		fill(thrust::device, lambdas_.begin(), lambdas_.end(), 0.0f);
+		fill(thrust::device, delta_positions_.begin(), delta_positions_.end(), make_float3(0.0f));
+	}
+	
+	void PbfSolverGpu::RecordOldPositions_() {
+		old_positions_.swap(d_positions_);
+	}
+		
 	void PbfSolverGpu::ApplyGravity_(const float dt) {
 		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
 		ApplyGravityKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(num_ptcs_, dt,
@@ -724,6 +790,15 @@ namespace impl_ {
 		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
 		ImposeBoundaryConstraintKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(
 			num_ptcs_, world_size_, PositionsPtr_(), VelocitiesPtr_());
+	}
+	
+	void PbfSolverGpu::FindNeighbors_() {
+		const float3 world_sz_dim = make_float3(world_size_);
+		
+		CellGridGpu cell_grid{ world_sz_dim, cell_grid_size_ };
+		UpdateCellGrid(d_positions_, &cell_grid);
+			
+		FindParticleNeighbors(d_positions_, cell_grid, h_, &ptc_nb_recs_);
 	}
 
 	void PbfSolverGpu::ComputeLambdas_() {
@@ -749,5 +824,12 @@ namespace impl_ {
 		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
 		ApplyDeltaPositionsKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(
 			delta_positions_ptr, num_ptcs_, PositionsPtr_());
+	}
+	
+	void PbfSolverGpu::UpdateVelocities_(const float dt) {
+		const float3* old_positions_ptr = thrust::raw_pointer_cast(old_positions_.data());
+		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
+		UpdateVelocitiesKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(old_positions_ptr, PositionsPtr_(),
+			num_ptcs_, dt, VelocitiesPtr_());
 	}
 } // namespace pbf
