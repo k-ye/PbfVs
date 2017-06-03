@@ -1,11 +1,3 @@
-//
-//  arcball_camera.h
-//  PBF
-//
-//  Created by Ye Kuang on 3/28/17.
-//  Copyright © 2017 Ye Kuang. All rights reserved.
-//
-
 #ifndef arcball_camera_h
 #define arcball_camera_h
 
@@ -15,10 +7,8 @@
 #include <algorithm>
 #include <iostream>
 
-namespace pbf
-{
-    class ArcballCamera
-    {
+namespace pbf {
+    class ArcballCamera {
     private:
         enum { X = 0, Y = 1 };
         
@@ -68,6 +58,5 @@ namespace pbf
         
     };
 } // namespace pbf
-
 
 #endif /* arcball_cameca_h */

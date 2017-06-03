@@ -5,8 +5,9 @@
 
 #include "basic.h"
 
-namespace  pbf {
-    class AABB {
+namespace pbf {
+    
+	class AABB {
     public:
         enum { X = 0, Y = 1, Z = 2, NDIM = 3 };
         
@@ -41,6 +42,5 @@ namespace  pbf {
         point_t min_;
         point_t max_;
     }; // class AABB
-}
-
+} // namespace pbf
 #endif /* aabb_h */

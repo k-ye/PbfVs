@@ -22,7 +22,6 @@
     <ClInclude Include="include\aabb.h" />
     <ClInclude Include="include\arcball_camera.h" />
     <ClInclude Include="include\basic.h" />
-    <ClInclude Include="include\boundary_constraint.h" />
     <ClInclude Include="include\config.h" />
     <ClInclude Include="include\constants.h" />
     <ClInclude Include="include\cuda_basic.h" />
@@ -46,7 +45,6 @@
   <ItemGroup>
     <ClCompile Include="src\aabb.cpp" />
     <ClCompile Include="src\arcball_camera.cpp" />
-    <ClCompile Include="src\boundary_constraint.cpp" />
     <ClCompile Include="src\config.cpp" />
     <ClCompile Include="src\gl_utils.cpp" />
     <ClCompile Include="src\gravity.cpp" />

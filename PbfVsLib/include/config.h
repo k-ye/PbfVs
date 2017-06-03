@@ -1,11 +1,3 @@
-//
-//  config.h
-//  PBF
-//
-//  Created by Ye Kuang on 3/30/17.
-//  Copyright © 2017 Ye Kuang. All rights reserved.
-//
-
 #ifndef config_h
 #define config_h
 
@@ -14,19 +6,15 @@
 #include <string>
 #include <unordered_map>
 
-namespace pbf
-{
-namespace detail_
-{
+namespace pbf {
+namespace detail_ {
     template <typename T>
     struct TypeTrait { typedef T type; };
     
     ////////////////////////////////////////////////////
 	// Casters from std::string to some type.
 
-    inline std::string Cast(const std::string& val_str, TypeTrait<std::string>) {
-        return val_str;
-    }
+    inline std::string Cast(const std::string& val_str, TypeTrait<std::string>) { return val_str; }
     
 	int Cast(const std::string& val_str, TypeTrait<int>);
     
@@ -37,7 +25,8 @@ namespace detail_
 	long unsigned Cast(const std::string& val_str, TypeTrait<long unsigned>);
     
 	float Cast(const std::string& val_str, TypeTrait<float>);
-    
+
+	// entry point for all casters
     template <typename T>
     T Cast(const std::string& val_str) { return Cast(val_str, TypeTrait<T>{}); }
     
@@ -45,12 +34,28 @@ namespace detail_
     
     
 } // namespace detail_
-    
-    class Config
-    {
+
+	// This class reads a very simple config file format that contains only key-value pairs
+	// without any scope concept.
+	//
+	// Sample format:
+	//
+	// # Line comment begins with a '#'.
+	// # Key-value pairs are separated by '=', no whitespace allowed.
+	// # Empty lines can be inserted freely to better illustrate the structure
+	// # of the file.
+	// key1=val1
+	// key2=val2
+	//
+	// key3=val2
+	// # ...
+    class Config {
     public:
+		// Load a config file in |filepath|
         void Load(const char* filepath);
-        
+
+		// Get the value of |key| optionally. Returns false if |key| is not found.
+		// Otherwise stores the value in |result| and returns true.
         template <typename T>
         bool GetOptional(const std::string& key, T* result) const {
             std::string val_str;
@@ -61,7 +66,8 @@ namespace detail_
             *result = detail_::Cast<T>(val_str);
             return true;
         }
-        
+
+		// Get the value of |key|. Throws std::runtime_error if |key| is not found.
         template <typename T>
         T Get(const std::string& key) const {
             T result;
@@ -77,6 +83,7 @@ namespace detail_
             return result;
         }
         
+		// Add a new key-value pair to the config.
         template <typename T>
         void Set(const std::string& key, const T& val) {
             kv_map_[key] = std::to_string(val);
@@ -88,7 +95,6 @@ namespace detail_
     private:
         std::string filepath_;
         std::unordered_map<std::string, std::string> kv_map_;
-        
     };
 } // namespace pbf
 

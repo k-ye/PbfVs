@@ -41,6 +41,9 @@ namespace pbf {
 		std::string line;
 
 		while (std::getline(ss, line)) {
+			// a line that begins with '#' is a comment
+			if (line.empty() || line[0] == '#')
+				continue;
 			size_t eq_pos = line.find('=');
 			std::string key = line.substr(0, eq_pos);
 			std::string val = line.substr(eq_pos + 1); // skip the '='

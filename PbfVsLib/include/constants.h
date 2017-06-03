@@ -1,21 +1,18 @@
-//
-//  constants.h
-//  PBF
-//
-//  Created by Ye Kuang on 3/30/17.
-//  Copyright © 2017 Ye Kuang. All rights reserved.
-//
-
 #ifndef constants_h
 #define constants_h
 
 #include <string>
 
-namespace pbf
-{
+namespace pbf {
+    
+	////////////////////////////////////////////////////
+	// All the key names used in the config file of this solver
+
+	// World settings 
 	const std::string WORLD_SIZE = "world_size";
 	const std::string DELTA_TIME = "delta_time";
 
+	// Camera
 	const std::string FOV = "fov";
 	const std::string PROJECTION_NEAR = "projection_near";
 	const std::string PROJECTION_FAR = "projection_far";
@@ -24,6 +21,7 @@ namespace pbf
 	const std::string INIT_ARCBALL_RADIUS = "init_arcball_radius";
 	const std::string MAX_ARCBALL_RADIUS = "max_arcball_radius";
 
+	// Particle system
 	const std::string NUM_PTCS_WIDTH = "num_particles_width";
 	const std::string NUM_PTCS_HEIGHT = "num_particles_height";
 	const std::string NUM_PTC_LAYERS = "num_particle_layers";

@@ -1,6 +1,3 @@
-//
-//  aabb.cpp
-//  PBF
 #include <stdexcept>
 
 #include "../include/aabb.h"
