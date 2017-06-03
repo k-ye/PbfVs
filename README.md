@@ -5,6 +5,16 @@
 
 - Implement both the CPU and GPU version of the Position Based Fluid
 
+## Progress
+
+[x] CPU impl
+[x] GPU impl
+[ ] Refactor
+
+## TODO
+
+See Issue tab
+
 ## Dependency
 
 - OpenGL
