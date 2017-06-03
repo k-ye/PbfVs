@@ -94,11 +94,22 @@ namespace pbf {
 		void ApplyDeltaPositions_();
 
 		void UpdateVelocities_(const float dt);
+		
+		void ComputeVorticities_();
+		
+		void ComputeVorticityCorrForces_();
+		
+		void ComputeXsphs_();
 
+		void ApplyVelocityCorrections_(const float dt);
+		
 		void UpdatePs_();
 
 		inline float3* PositionsPtr_() { return thrust::raw_pointer_cast(d_positions_.data()); }
+		inline const float3* PositionsPtr_() const { return thrust::raw_pointer_cast(d_positions_.data()); }
+		
 		inline float3* VelocitiesPtr_() { return thrust::raw_pointer_cast(d_velocities_.data()); }
+		inline const float3* VelocitiesPtr_() const { return thrust::raw_pointer_cast(d_velocities_.data()); }
 	
 	private:
 		float cell_grid_size_;
@@ -112,6 +123,9 @@ namespace pbf {
 		d_vector<float3> old_positions_;
 		d_vector<float> lambdas_;
 		d_vector<float3> delta_positions_;
+		d_vector<float3> vorticities_;
+		d_vector<float3> vorticity_corr_forces_;
+		d_vector<float3> xsphs_;
 	};
 
 	// For test purpose only

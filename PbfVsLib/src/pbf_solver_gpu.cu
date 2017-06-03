@@ -723,6 +723,86 @@ namespace impl_ {
 		velocities[ptc_i] = new_vel_i;
 	}
 
+	__global__ static void ComputeVorticitiesKernel(const float3* positions, const float3* velocities,
+		const int* ptc_num_neighbors, const int* ptc_neighbor_begins, const int* ptc_neighbor_indices, 
+		const int num_ptcs, const float h, float3* vorticities) 
+	{
+		const int ptc_i = (blockDim.x * blockIdx.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
+		
+		const float3 pos_i = positions[ptc_i];
+		const float3 vel_i = velocities[ptc_i];
+		const int num_nbs = ptc_num_neighbors[ptc_i];
+		const int nb_begin = ptc_neighbor_begins[ptc_i];
+		
+		float3 vorticity = make_float3(0.0f);
+		for (int offs = 0; offs < num_nbs; ++offs) {
+			const int ptc_j = ptc_neighbor_indices[nb_begin + offs];
+			// vel_diff_ij = vel_j - vel_i;
+			const float3 vel_ij = velocities[ptc_j] - vel_i;
+			// gradient = kernel_.Gradient(pos_i - pos_j);
+			const float3 pos_ji = pos_i - positions[ptc_j];
+			const float3 gradient = SpikyGradient(pos_ji, h);
+			// result += glm::cross(vel_diff_ij, gradient);
+			vorticity += cross(vel_ij, gradient);
+		}
+		vorticities[ptc_i] = vorticity;
+	}
+
+	__global__ static void ComputeVorticityCorrForcesKernel(const float3* positions, 
+		const int* ptc_num_neighbors, const int* ptc_neighbor_begins, const int* ptc_neighbor_indices,
+		const float3* vorticities, const int num_ptcs, const float h, const float vorticity_epsilon,
+		float3* vorticity_corr_forces) 
+	{
+		const int ptc_i = (blockDim.x * blockIdx.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
+		
+		const float3 pos_i = positions[ptc_i];
+		// Compute Eta
+		const int num_nbs = ptc_num_neighbors[ptc_i];
+		const int nb_begin = ptc_neighbor_begins[ptc_i];
+		float3 eta = make_float3(0.0f);
+		for (int offs = 0; offs < num_nbs; ++offs) {
+			const int ptc_j = ptc_neighbor_indices[nb_begin + offs];
+			const float3 pos_ji = pos_i - positions[ptc_j];
+			const float omega_j_len = length(vorticities[ptc_j]);
+			const float3 gradient = SpikyGradient(pos_ji, h);
+			eta += (omega_j_len * gradient);
+		}
+		// Compute Vorticity Corr Force
+		const float eta_len = length(eta);
+		float3 vort_corr_force = make_float3(0.0f);
+		if (eta_len > 1e-6) {
+			eta = normalize(eta);
+			const float3 omega_i = vorticities[ptc_i];
+			vort_corr_force = vorticity_epsilon * cross(eta, omega_i);
+		}
+		vorticity_corr_forces[ptc_i] = vort_corr_force;
+	}
+
+	__global__ static void ComputeXsphsKernel(const float3* positions, const float3* velocities,
+		const int* ptc_num_neighbors, const int* ptc_neighbor_begins, const int* ptc_neighbor_indices,
+		const int num_ptcs, const float h, const float xsph_c, float3* xsphs)
+	{
+		const int ptc_i = (blockDim.x * blockIdx.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
+
+		const float3 pos_i = positions[ptc_i];
+		const float3 vel_i = velocities[ptc_i];
+		const int num_nbs = ptc_num_neighbors[ptc_i];
+		const int nb_begin = ptc_neighbor_begins[ptc_i];
+
+		float3 xsph = make_float3(0.0f);
+		for (int offs = 0; offs < num_nbs; ++offs) {
+			const int ptc_j = ptc_neighbor_indices[nb_begin + offs];
+			const float3 vel_ij = velocities[ptc_j] - vel_i;
+			const float w = Poly6Value(pos_i - positions[ptc_j], h);
+			xsph += (w * vel_ij);
+		}
+		xsph *= xsph_c;
+		xsphs[ptc_i] = xsph;
+	}
+	
 	void PbfSolverGpu::CustomConfigure_(const PbfSolverConfig& config) {
 		cell_grid_size_ = config.spatial_hash_cell_size;
 	}
@@ -738,6 +818,8 @@ namespace impl_ {
 		// device memory back to each particle. This is because
 		// PbfSolverGpu is the only one who modifies the particles'
 		// data (position/velocity).
+		d_positions_.reserve(num_ptcs_);
+		d_velocities_.reserve(num_ptcs_);
 		for (size_t p_i = 0; p_i < num_ptcs_; ++p_i) {
 			auto ptc_i = ps_->Get(p_i);
 			d_positions_.push_back(Convert(ptc_i.position()));
@@ -745,9 +827,13 @@ namespace impl_ {
 		}
 		
 		// init particle records
-		old_positions_.resize(num_ptcs_, make_float3(0.0f));
+		const float3 zeros = make_float3(0.0f);
+		old_positions_.resize(num_ptcs_, zeros);
 		lambdas_.resize(num_ptcs_, 0.0f);
-		delta_positions_.resize(num_ptcs_, make_float3(0.0f));
+		delta_positions_.resize(num_ptcs_, zeros);
+		vorticities_.resize(num_ptcs_, zeros);
+		vorticity_corr_forces_.resize(num_ptcs_, zeros);
+		xsphs_.resize(num_ptcs_, zeros);
 	}
 	
 	void PbfSolverGpu::Update(float dt) {
@@ -761,7 +847,6 @@ namespace impl_ {
 		
 		for (unsigned itr = 0; itr < num_iters_; ++itr) {
 			ComputeLambdas_();
-			
 			ComputeDeltaPositions_();
 			ApplyDeltaPositions_();
 		}
@@ -769,15 +854,25 @@ namespace impl_ {
 		ImposeBoundaryConstraint_();
 		UpdateVelocities_(dt);
 
+		ComputeVorticities_();
+		ComputeVorticityCorrForces_();
+		ComputeXsphs_();
+		ApplyVelocityCorrections_(dt);
+
 		UpdatePs_();
 	}
 	
 	void PbfSolverGpu::ResetParticleRecords_() {
 		using thrust::fill;
-		
-		fill(thrust::device, old_positions_.begin(), old_positions_.end(), make_float3(0.0f));
-		fill(thrust::device, lambdas_.begin(), lambdas_.end(), 0.0f);
-		fill(thrust::device, delta_positions_.begin(), delta_positions_.end(), make_float3(0.0f));
+		using thrust::device;
+
+		const float3 zeros = make_float3(0.0f);
+		fill(device, old_positions_.begin(), old_positions_.end(), zeros);
+		fill(device, lambdas_.begin(), lambdas_.end(), 0.0f);
+		fill(device, delta_positions_.begin(), delta_positions_.end(), zeros);
+		fill(device, vorticities_.begin(), vorticities_.end(), zeros);
+		fill(device, vorticity_corr_forces_.begin(), vorticity_corr_forces_.end(), zeros);
+		fill(device, xsphs_.begin(), xsphs_.end(), zeros);
 	}
 	
 	void PbfSolverGpu::RecordOldPositions_() {
@@ -788,12 +883,16 @@ namespace impl_ {
 		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
 		ApplyGravityKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(num_ptcs_, dt,
 			PositionsPtr_(), VelocitiesPtr_());
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
 	}
 
 	void PbfSolverGpu::ImposeBoundaryConstraint_() {
 		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
 		ImposeBoundaryConstraintKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(
 			num_ptcs_, world_size_, PositionsPtr_(), VelocitiesPtr_());
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
 	}
 	
 	void PbfSolverGpu::FindNeighbors_() {
@@ -811,6 +910,8 @@ namespace impl_ {
 		ComputeLambdaKernel<<<num_blocks_ptc, kNumThreadPerBlock>>> (
 			PositionsPtr_(), ptc_nb_recs_.ptc_num_neighbors_ptr(), ptc_nb_recs_.ptc_neighbor_begins_ptr(), 
 			ptc_nb_recs_.ptc_neighbor_indices_ptr(), num_ptcs_, h_, mass_, rho_0_recpr_, epsilon_, lambdas_ptr);
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
 	}
 	
 	void PbfSolverGpu::ComputeDeltaPositions_() {
@@ -821,6 +922,8 @@ namespace impl_ {
 			PositionsPtr_(), ptc_nb_recs_.ptc_num_neighbors_ptr(), ptc_nb_recs_.ptc_neighbor_begins_ptr(),
 			ptc_nb_recs_.ptc_neighbor_indices_ptr(),  lambdas_ptr, num_ptcs_, h_, rho_0_recpr_, 
 			corr_delta_q_coeff_, corr_k_, corr_n_, delta_positions_ptr);
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
 	}
 	
 	void PbfSolverGpu::ApplyDeltaPositions_() {
@@ -828,6 +931,8 @@ namespace impl_ {
 		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
 		ApplyDeltaPositionsKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(
 			delta_positions_ptr, num_ptcs_, PositionsPtr_());
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
 	}
 	
 	void PbfSolverGpu::UpdateVelocities_(const float dt) {
@@ -835,6 +940,47 @@ namespace impl_ {
 		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
 		UpdateVelocitiesKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(old_positions_ptr, PositionsPtr_(),
 			num_ptcs_, dt, VelocitiesPtr_());
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
+	}
+
+	void PbfSolverGpu::ComputeVorticities_() {
+		float3* vorticities_ptr = thrust::raw_pointer_cast(vorticities_.data());
+		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
+		ComputeVorticitiesKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(PositionsPtr_(), VelocitiesPtr_(),
+			ptc_nb_recs_.ptc_num_neighbors_ptr(), ptc_nb_recs_.ptc_neighbor_begins_ptr(),
+			ptc_nb_recs_.ptc_neighbor_indices_ptr(), num_ptcs_, h_, vorticities_ptr);
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
+	}
+	
+	void PbfSolverGpu::ComputeVorticityCorrForces_() {
+		const float3* vorticities_ptr = thrust::raw_pointer_cast(vorticities_.data());
+		float3* vort_corr_forces_ptr = thrust::raw_pointer_cast(vorticity_corr_forces_.data());
+		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
+
+		ComputeVorticityCorrForcesKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(PositionsPtr_(),
+			ptc_nb_recs_.ptc_num_neighbors_ptr(), ptc_nb_recs_.ptc_neighbor_begins_ptr(),
+			ptc_nb_recs_.ptc_neighbor_indices_ptr(), vorticities_ptr, num_ptcs_, h_, vorticity_epsilon_,
+			vort_corr_forces_ptr);
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
+	}
+
+	void PbfSolverGpu::ComputeXsphs_() {
+		float3* xsphs_ptr = thrust::raw_pointer_cast(xsphs_.data());
+		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
+		ComputeXsphsKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(PositionsPtr_(), VelocitiesPtr_(),
+			ptc_nb_recs_.ptc_num_neighbors_ptr(), ptc_nb_recs_.ptc_neighbor_begins_ptr(),
+			ptc_nb_recs_.ptc_neighbor_indices_ptr(), num_ptcs_, h_, xsph_c_, xsphs_ptr);
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
+	}
+	
+	void PbfSolverGpu::ApplyVelocityCorrections_(const float dt) {
+
+		cudaDeviceSynchronize();
+		checkCudaErrors(cudaGetLastError());
 	}
 	
 	void PbfSolverGpu::UpdatePs_() {

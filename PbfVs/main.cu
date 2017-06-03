@@ -26,7 +26,6 @@
 #include "include/shader_wrapper.h"
 
 #include "include/aabb.h"
-#include "include/boundary_constraint.h"
 #include "include/gravity.h"
 #include "include/particle_system.h"
 #include "include/pbf_solver.h"
