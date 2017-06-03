@@ -9,6 +9,8 @@
 namespace pbf {
 
 	void PbfSolver::CustomConfigure_(const PbfSolverConfig& config) {
+		// init kernel function constants
+		kernel_.set_h(h_);
 		// init spatial hash
 		spatial_hash_.set_cell_size(config.spatial_hash_cell_size);
 	}

@@ -68,9 +68,7 @@ namespace pbf {
 
 		float world_size_;
 
-		WKernel kernel_{};
 		ParticleSystem* ps_;
-
 	};
 } // namespace pbf
 

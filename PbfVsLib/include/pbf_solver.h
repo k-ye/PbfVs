@@ -43,11 +43,12 @@ namespace pbf
 
 		vec_t ComputeVorticity_(size_t p_i) const;
 		
-		vec_t PbfSolver::ComputeEta_(size_t p_i) const;
+		vec_t ComputeEta_(size_t p_i) const;
 
 		vec_t ComputeXsph_(size_t p_i) const;
 	
 	private:
+		WKernel kernel_{};
 		GravityEffect gravity_{};
 		SpatialHash<size_t, PositionGetter> spatial_hash_;
 		

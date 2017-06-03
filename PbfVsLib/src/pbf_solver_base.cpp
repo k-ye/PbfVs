@@ -22,8 +22,6 @@ namespace pbf {
 		xsph_c_ = config.xsph_c;
 
 		world_size_ = config.world_size;
-		// init kernel function constants
-		kernel_.set_h(h_);
 		// Additional configuration by the subclass
 		CustomConfigure_(config);
 	}
