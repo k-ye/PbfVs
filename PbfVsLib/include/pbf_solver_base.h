@@ -44,10 +44,6 @@ namespace pbf {
 		// Called as the last step in InitParticleSystems, at which
 		// point ps_ is guaranteed to be initialized.
 		virtual void CustomInitPs_() {}
-		
-		void ResetParticleRecords_();
-		
-		void RecordOldPositions_();
 	
 	protected:
 		// kernel function h
@@ -75,24 +71,6 @@ namespace pbf {
 		WKernel kernel_{};
 		ParticleSystem* ps_;
 
-		class ParticleRecord
-		{
-		public:
-			void ClearNeighbors() { neighbor_idxs.clear(); }
-
-			void AddNeighbor(size_t i) { neighbor_idxs.insert(i); }
-
-		public:
-			// std::vector<size_t> neighbor_idxs;
-			std::unordered_set<size_t> neighbor_idxs;
-			float lambda{ 0.0f };
-
-			vec_t old_pos{ 0.0f };
-			vec_t delta_pos{ 0.0f };
-			vec_t vorticity{ 0.0f };
-		};
-		
-		std::vector<ParticleRecord> ptc_records_;
 	};
 } // namespace pbf
 

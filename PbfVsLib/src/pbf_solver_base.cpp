@@ -30,25 +30,7 @@ namespace pbf {
 	
 	void PbfSolverBase::InitParticleSystems(ParticleSystem* ps) {
 		ps_ = ps;
-		ptc_records_.resize(ps_->NumParticles());
 		// Additional particle system initialization by the subclass
 		CustomInitPs_();
-	}
-	
-	void PbfSolverBase::ResetParticleRecords_() {
-		for (auto& ptc_rec : ptc_records_) {
-			ptc_rec.ClearNeighbors();
-			ptc_rec.lambda = 0.0f;
-			ptc_rec.old_pos = vec_t{ 0.0f };
-			ptc_rec.delta_pos = vec_t{ 0.0f };
-			ptc_rec.vorticity = vec_t{ 0.0f };
-		}
-	}
-
-	void PbfSolverBase::RecordOldPositions_() {
-		for (size_t p_i = 0; p_i < ps_->NumParticles(); ++p_i) {
-			const auto old_pos_i = ps_->Get(p_i).position();
-			ptc_records_[p_i].old_pos = old_pos_i;
-		}
 	}
 } // namespace pbf

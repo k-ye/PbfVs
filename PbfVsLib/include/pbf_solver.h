@@ -22,6 +22,10 @@ namespace pbf
 		void CustomInitPs_() override;
 
 		// helpers to implement this solver
+		void ResetParticleRecords_();
+		
+		void RecordOldPositions_();
+		
 		void ImposeBoundaryConstraint_();
 
 		void FindNeighbors_();
@@ -42,9 +46,29 @@ namespace pbf
 		vec_t PbfSolver::ComputeEta_(size_t p_i) const;
 
 		vec_t ComputeXsph_(size_t p_i) const;
+	
 	private:
 		GravityEffect gravity_{};
 		SpatialHash<size_t, PositionGetter> spatial_hash_;
+		
+		class ParticleRecord
+		{
+		public:
+			void ClearNeighbors() { neighbor_idxs.clear(); }
+
+			void AddNeighbor(size_t i) { neighbor_idxs.insert(i); }
+
+		public:
+			// std::vector<size_t> neighbor_idxs;
+			std::unordered_set<size_t> neighbor_idxs;
+			float lambda{ 0.0f };
+
+			vec_t old_pos{ 0.0f };
+			vec_t delta_pos{ 0.0f };
+			vec_t vorticity{ 0.0f };
+		};
+		
+		std::vector<ParticleRecord> ptc_records_;
 	};
 }
 #endif /* pbf_solver_h */

@@ -15,6 +15,7 @@ namespace pbf {
 	
 	void PbfSolver::CustomInitPs_() {
 		// First reset all the auxiliary data structures
+		ptc_records_.resize(ps_->NumParticles());
 		spatial_hash_.Clear();
 		// Then construct them based on the new ps instance
 		PositionGetter pg{ ps_ };
@@ -78,6 +79,23 @@ namespace pbf {
 			new_vel_i += (ComputeVorticityCorrForce_(p_i) * dt);
 			new_vel_i += ComputeXsph_(p_i);
 			ptc_i.set_velocity(new_vel_i);
+		}
+	}
+	
+	void PbfSolver::ResetParticleRecords_() {
+		for (auto& ptc_rec : ptc_records_) {
+			ptc_rec.ClearNeighbors();
+			ptc_rec.lambda = 0.0f;
+			ptc_rec.old_pos = vec_t{ 0.0f };
+			ptc_rec.delta_pos = vec_t{ 0.0f };
+			ptc_rec.vorticity = vec_t{ 0.0f };
+		}
+	}
+
+	void PbfSolver::RecordOldPositions_() {
+		for (size_t p_i = 0; p_i < ps_->NumParticles(); ++p_i) {
+			const auto old_pos_i = ps_->Get(p_i).position();
+			ptc_records_[p_i].old_pos = old_pos_i;
 		}
 	}
 	
