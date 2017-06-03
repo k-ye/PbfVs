@@ -65,13 +65,15 @@ namespace pbf {
 
 	class PbfSolverGpu : public PbfSolverBase {
 	public:
-		PbfSolverGpu() : PbfSolverBase() {}
+		PbfSolverGpu() : PbfSolverBase(), num_ptcs_(0) {}
 		
 		void Update(float dt) override;
 
 	private:
-		inline int NumPtcs_() const { return ps_->NumParticles(); }
+		// overrides		
+		void CustomInitPs_() override;
 
+		// helpers
 		void ApplyGravity_(const float dt);
 
 		void ImposeBoundaryConstraint_();
@@ -82,8 +84,13 @@ namespace pbf {
 		
 		void ApplyDeltaPositions_();
 
-		float3* d_positions_;
-		float3* d_velocities_;
+		inline float3* PositionsPtr_() { return thrust::raw_pointer_cast(d_positions_.data()); }
+		inline float3* VelocitiesPtr_() { return thrust::raw_pointer_cast(d_velocities_.data()); }
+	private:
+		int num_ptcs_;
+
+		d_vector<float3> d_positions_;
+		d_vector<float3> d_velocities_;
 		
 		// particle records 
 		GpuParticleNeighbors ptc_nb_recs_;
