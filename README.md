@@ -11,7 +11,7 @@
 - [x] GPU impl
 - [ ] Refactor
 - [ ] Enhancement
-- [ ] Dynamic link of CPU/GPU
+- [ ] Optional build on GPU impl
 
 ## TODO
 
