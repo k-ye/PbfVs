@@ -7,9 +7,11 @@
 
 ## Progress
 
-[x] CPU impl
-[x] GPU impl
-[ ] Refactor
+- [x] CPU impl
+- [x] GPU impl
+- [ ] Refactor
+- [ ] Enhancement
+- [ ] Dynamic link of CPU/GPU
 
 ## TODO
 
