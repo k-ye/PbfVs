@@ -15,7 +15,7 @@
 
 ## TODO
 
-See *Issues* tab
+See [Issues](https://github.com/k-ye/PbfVs/issues)
 
 ## Dependency
 
