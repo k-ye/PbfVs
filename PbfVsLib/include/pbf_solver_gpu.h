@@ -12,6 +12,7 @@ namespace pbf {
 	using d_vector = thrust::device_vector<T>;
 	
 	float3 Convert(const point_t& pt);
+	point_t Convert(const float3& f);
 
 	class CellGridGpu {
 	public:
@@ -93,6 +94,8 @@ namespace pbf {
 		void ApplyDeltaPositions_();
 
 		void UpdateVelocities_(const float dt);
+
+		void UpdatePs_();
 
 		inline float3* PositionsPtr_() { return thrust::raw_pointer_cast(d_positions_.data()); }
 		inline float3* VelocitiesPtr_() { return thrust::raw_pointer_cast(d_velocities_.data()); }

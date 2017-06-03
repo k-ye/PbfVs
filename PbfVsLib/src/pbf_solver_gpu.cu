@@ -11,7 +11,9 @@
 namespace pbf {
 	constexpr int kNumThreadPerBlock = 256;
 	
-	inline float3 Convert(const point_t& pt) { return make_float3(pt.x, pt.y, pt.z); }
+	float3 Convert(const point_t& pt) { return make_float3(pt.x, pt.y, pt.z); }
+
+	point_t Convert(const float3& f) { return point_t{ f.x, f.y, f.z }; }
 
 namespace impl_ {
 
@@ -766,6 +768,8 @@ namespace impl_ {
 		
 		ImposeBoundaryConstraint_();
 		UpdateVelocities_(dt);
+
+		UpdatePs_();
 	}
 	
 	void PbfSolverGpu::ResetParticleRecords_() {
@@ -777,7 +781,7 @@ namespace impl_ {
 	}
 	
 	void PbfSolverGpu::RecordOldPositions_() {
-		old_positions_.swap(d_positions_);
+		thrust::copy(thrust::device, d_positions_.begin(), d_positions_.end(), old_positions_.begin());
 	}
 		
 	void PbfSolverGpu::ApplyGravity_(const float dt) {
@@ -831,5 +835,18 @@ namespace impl_ {
 		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
 		UpdateVelocitiesKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(old_positions_ptr, PositionsPtr_(),
 			num_ptcs_, dt, VelocitiesPtr_());
+	}
+	
+	void PbfSolverGpu::UpdatePs_() {
+		using thrust::host_vector;
+		host_vector<float3> h_positions{ d_positions_ };
+		host_vector<float3> h_velocities{ d_velocities_ };
+
+		for (size_t p_i = 0; p_i < num_ptcs_; ++p_i) {
+			auto ptc_i = ps_->Get(p_i);
+			ptc_i.set_position(Convert(h_positions[p_i]));
+			ptc_i.set_velocity(Convert(h_velocities[p_i]));
+		}
+
 	}
 } // namespace pbf

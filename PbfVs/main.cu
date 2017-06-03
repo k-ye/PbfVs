@@ -30,9 +30,9 @@
 #include "include/gravity.h"
 #include "include/particle_system.h"
 #include "include/pbf_solver.h"
+#include "include/pbf_solver_gpu.h"
 #include "include/spatial_hash.h"
 
-#include "include/pbf_solver_gpu.h"
 ////////////////////////////////////////////////////
 
 // Window dimensions
@@ -48,7 +48,8 @@ pbf::ArcballCamera camera;
 pbf::ParticleSystem ps;
 
 // PBF Solver instance
-pbf::PbfSolver solver;
+// pbf::PbfSolver solver;
+pbf::PbfSolverGpu solver;
 
 // SceneRender instance
 pbf::SceneRenderer render;
@@ -125,10 +126,6 @@ int main() {
 	render.InitShaders("Shaders/vertex.vert", "Shaders/fragment.frag");
 	render.InitScene();
 
-	// pbf::GravityEffect ge;
-	// pbf::CubicBoundaryConstraint cbc;
-	// cbc.set_boundary_size(world_size);
-
 	// Game loop
 	while (!glfwWindowShouldClose(window)) {
 		// Check if any events have been activiated (key pressed, mouse moved etc.)
@@ -136,8 +133,6 @@ int main() {
 		glfwPollEvents();
 
 		if (!is_paused) {
-			// ge.Evaluate(delta_time, &ps);
-			// cbc.Apply(&ps);
 			solver.Update(delta_time);
 		}
 		render.Render();
