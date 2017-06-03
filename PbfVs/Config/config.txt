@@ -22,5 +22,5 @@ max_arcball_radius=200.0f
 
 num_particles_width=25
 num_particles_height=25
-num_particle_layers=20
+num_particle_layers=25
 particle_interval=1.0f

@@ -802,6 +802,18 @@ namespace impl_ {
 		xsph *= xsph_c;
 		xsphs[ptc_i] = xsph;
 	}
+
+	__global__ static void ApplyVelocityCorrectionsKernel(const float3* vorticity_corr_forces, 
+		const float3* xsphs, const int num_ptcs, const float dt, float3* velocities)
+	{
+		const int ptc_i = (blockDim.x * blockIdx.x) + threadIdx.x;
+		if (ptc_i >= num_ptcs) return;
+
+		float3 vel_i = velocities[ptc_i];
+		vel_i += vorticity_corr_forces[ptc_i] * dt;
+		vel_i += xsphs[ptc_i];
+		velocities[ptc_i] = vel_i;
+	}
 	
 	void PbfSolverGpu::CustomConfigure_(const PbfSolverConfig& config) {
 		cell_grid_size_ = config.spatial_hash_cell_size;
@@ -978,7 +990,11 @@ namespace impl_ {
 	}
 	
 	void PbfSolverGpu::ApplyVelocityCorrections_(const float dt) {
-
+		const float3* vort_corr_forces_ptr = thrust::raw_pointer_cast(vorticity_corr_forces_.data());
+		const float3* xsphs_ptr = thrust::raw_pointer_cast(xsphs_.data());
+		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
+		ApplyVelocityCorrectionsKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(vort_corr_forces_ptr,
+			xsphs_ptr, num_ptcs_, dt, VelocitiesPtr_());
 		cudaDeviceSynchronize();
 		checkCudaErrors(cudaGetLastError());
 	}
