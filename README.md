@@ -15,15 +15,15 @@
 
 ## TODO
 
-See Issue tab
+See *Issues* tab
 
 ## Dependency
 
 - OpenGL
 - glfw3
 - GLEW
-- glm (header library only)
-- CUDA 8.0
+- glm (header-only library)
+- CUDA 8.0 (this should be optional)
 
 ## Project Setup
 
