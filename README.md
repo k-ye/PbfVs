@@ -15,7 +15,7 @@
 
 Wave simulation using ~15,000 particles on NVIDIA GeForce GTX 960M.
 
-![](screenshots/wave.gif)
+![](screenshots/wave.gif =320x240)
 
 ## TODO
 
