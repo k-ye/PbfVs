@@ -10,9 +10,6 @@
 namespace pbf {
 	template <typename T>
 	using d_vector = thrust::device_vector<T>;
-	
-	float3 Convert(const point_t& pt);
-	point_t Convert(const float3& f);
 
 	class CellGridGpu {
 	public:

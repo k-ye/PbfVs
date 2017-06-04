@@ -5,21 +5,16 @@
 // CUDA
 #include "../include/cuda_basic.h"
 #include "../include/helper_math.h"
+
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
 #include <thrust/copy.h>
 #include <thrust/reduce.h>
 
 namespace pbf {
-	constexpr int kNumThreadPerBlock = 512;
-	
-	float3 Convert(const point_t& pt) { return make_float3(pt.x, pt.y, pt.z); }
-
-	point_t Convert(const float3& f) { return point_t{ f.x, f.y, f.z }; }
+	constexpr int kNumThreadPerBlock = 512;	
 
 namespace impl_ {
-
-	
 	// ParticleSystemGpu
 	//
 	// CellGridGpu (equivalent to SpatialHash on CPU)

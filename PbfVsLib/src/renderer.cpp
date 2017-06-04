@@ -93,8 +93,8 @@ namespace {
     
     void SceneRenderer::InitScene() {
         // Set up world cube vertex data
-        
         world_cube_vertices_ = {
+			// position          color
             0.0f, 0.0f, 0.0f, 1.0f, 0.5f, 0.2f,                  // 0, left, bottom, far
             world_sz_, 0.0f, 0.0f, 1.0f, 0.5f, 0.2f,             // 1, right, bottom, far
             world_sz_, 0.0f, world_sz_, 1.0f, 0.5f, 0.2f,        // 2, right, bottom, near
@@ -114,10 +114,23 @@ namespace {
             0, 7, 4
         };
         
-        
-        ////////////////////////////////////////////////////
+		frame_vertices_ = {
+			// position          color
+			-1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,  // 0, x from
+			-1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f,  // 1, y from
+			-1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,  // 2, z from
+			+2.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,  // 3, x to
+			-1.0f, +2.0f, -1.0f, 0.0f, 0.0f, 1.0f,  // 4, y to
+			-1.0f, -1.0f, +2.0f, 0.0f, 1.0f, 0.0f,  // 5, z to
+		};
+		
+		frame_indices_ = {
+			0, 3,
+			1, 4,
+			2, 5
+		};
+
         // set up world scene
-        
         glGenVertexArrays(1, &world_vao_);
         glGenBuffers(1, &world_vbo_);
         glGenBuffers(1, &world_ebo_);
@@ -133,12 +146,23 @@ namespace {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
         
         SetVao_(world_vao_, world_vbo_, world_ebo_);
-        
-        ////////////////////////////////////////////////////
-        // set up particles
-        
-        // InitSpatialHash_();
+		// set up frame
+		glGenVertexArrays(1, &frame_vao_);
+		glGenBuffers(1, &frame_vbo_);
+		glGenBuffers(1, &frame_ebo_);
 
+		glBindBuffer(GL_ARRAY_BUFFER, frame_vbo_);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * frame_vertices_.size(),
+			frame_vertices_.data(), GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, frame_ebo_);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint) * frame_indices_.size(),
+			frame_indices_.data(), GL_STATIC_DRAW);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+		SetVao_(frame_vao_, frame_vbo_, frame_ebo_);
+        // set up particles
         for (size_t p_i = 0; p_i < ps_->NumParticles(); ++p_i) {
             auto ptc = ps_->Get(p_i);
             AddPointToDraw(ptc.position(), &particle_vertices_, &particle_indices_);
@@ -174,19 +198,25 @@ namespace {
         
         GLuint proj_loc = glGetUniformLocation(shader_program_, "proj");
         glUniformMatrix4fv(proj_loc, 1, GL_FALSE, glm::value_ptr(proj_));
-        
+
+		// draw the world bounding box
         glBindVertexArray(world_vao_);
         glDrawElements(GL_TRIANGLES, (int)world_cube_indices_.size(), GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
-        // https://www.gamedev.net/topic/597387-vao-is-it-necessary-to-redo-setup-each-time-buffer-data-changes/
-        
+
+		// draw the xyz frame
+		glBindVertexArray(frame_vao_);
+		glDrawElements(GL_LINES, (int)frame_indices_.size(), GL_UNSIGNED_INT, 0);
+		glBindVertexArray(0);
+
+		// draw particles
+        // https://www.gamedev.net/topic/597387-vao-is-it-necessary-to-redo-setup-each-time-buffer-data-changes/ 
         for (size_t p_i = 0; p_i < ps_->NumParticles(); ++p_i) {
 			const auto pos = ps_->Get(p_i).position();
 			float col_in = Interpolate(pos.y + world_sz_ * 0.5f, 0.0f, world_sz_, 0.0f, 1.0f);
 			col_in = std::max(std::min(col_in, 1.0f), 0.0f);
 			const glm::vec3 color{ 1.0f, col_in, 1.0f - col_in };
 			ChangePointToDraw(pos, p_i, &particle_vertices_, color);
-            // ChangePointToDraw(pos, p_i, &particle_vertices_);
         }
         
         glBindBuffer(GL_ARRAY_BUFFER, particles_vbo_);
@@ -199,5 +229,20 @@ namespace {
         glBindVertexArray(0);
         
         glUseProgram(0);
+
+		// draw the xyz coordinate
+		// auto glDrawLine = [](const point_t& to, const vec_t& color) {
+		// 	glLineWidth(1.0f);
+		// 	glColor3f(color.x, color.y, color.z);
+		// 	glBegin(GL_LINE);
+		// 	// a little bit shift from the origin (0, 0, 0)
+		// 	glVertex3f(-1.0f, -1.0f, -1.0f);
+		// 	glVertex3f(to.x, to.y, to.z);
+		// 	glEnd();
+		// };
+
+		// glDrawLine({ 1.0f, -1.0f, -1.0f }, { 1.0f, 0.0f, 0.0f }); // red for x
+		// glDrawLine({ -1.0f, -1.0f, 1.0f }, { 0.0f, 1.0f, 0.0f }); // green for z
+		// glDrawLine({ -1.0f, 1.0f, -1.0f }, { 0.0f, 0.0f, 1.0f }); // blue for y
     }
 } // namespace pbf

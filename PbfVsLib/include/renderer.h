@@ -1,11 +1,3 @@
-//
-//  renderer.h
-//  PBF
-//
-//  Created by Ye Kuang on 3/30/17.
-//  Copyright © 2017 Ye Kuang. All rights reserved.
-//
-
 #ifndef renderer_h
 #define renderer_h
 
@@ -63,6 +55,15 @@ namespace pbf {
         
         std::vector<GLfloat> world_cube_vertices_;
         std::vector<GLuint> world_cube_indices_;
+		
+		////////////////////////////////////////////////////
+        // xyz frame (coordinate) 
+		GLuint frame_vao_;
+        GLuint frame_vbo_;
+        GLuint frame_ebo_;
+        
+        std::vector<GLfloat> frame_vertices_;
+        std::vector<GLuint> frame_indices_;
         
         ////////////////////////////////////////////////////
         // particles
@@ -73,7 +74,8 @@ namespace pbf {
         
         std::vector<GLfloat> particle_vertices_;
         std::vector<GLuint> particle_indices_;
+		
     };
 } // namespace pbf
 
-#endif /* renderer_h */
+#endif // renderer_h
