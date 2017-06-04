@@ -1,5 +1,6 @@
 #ifndef cuda_basic_h
 #define cuda_basic_h
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
@@ -25,5 +26,6 @@ void check(T err, const char* const func, const char* const file,
 }
 
 #define checkCudaErrors(val) check( (val), #val, __FILE__, __LINE__)
+#define CUDA_CALLABLE __host__ __device__
 
 #endif // cuda_basic_h

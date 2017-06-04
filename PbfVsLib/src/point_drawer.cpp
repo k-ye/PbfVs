@@ -91,6 +91,5 @@ namespace {
             ChangeVertex(pt + offs, vidx);
             vidx += 6; // point to the start of the next vertex
         }
-        
     }
 } // namespace pbf

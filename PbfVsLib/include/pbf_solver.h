@@ -48,7 +48,6 @@ namespace pbf
 		vec_t ComputeXsph_(size_t p_i) const;
 	
 	private:
-		WKernel kernel_{};
 		GravityEffect gravity_{};
 		SpatialHash<size_t, PositionGetter> spatial_hash_;
 		

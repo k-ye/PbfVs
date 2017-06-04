@@ -1,8 +1,7 @@
 #ifndef pbf_solver_base_h 
 #define pbf_solver_base_h 
 
-#include "basic.h"
-#include "kernel.h"
+#include "typedefs.h"
 #include "particle_system.h"
 
 #include <cmath>

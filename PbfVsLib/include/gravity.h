@@ -9,14 +9,12 @@
 #ifndef test_force_h
 #define test_force_h
 
-#include "basic.h"
+#include "typedefs.h"
 
-namespace pbf
-{
+namespace pbf {
     class ParticleSystem;
     
-    class GravityEffect
-    {
+    class GravityEffect {
     public:
         GravityEffect();
         

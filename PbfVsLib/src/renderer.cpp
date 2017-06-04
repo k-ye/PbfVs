@@ -9,7 +9,7 @@
 #include "../include/renderer.h"
 
 #include "../include/arcball_camera.h"
-#include "../include/basic.h"
+#include "../include/shared_math.h"
 #include "../include/point_drawer.h"
 #include "../include/shader_wrapper.h"
 
@@ -18,10 +18,7 @@
 
 namespace pbf {
 namespace {
-
 	float Base_(float val) {
-		// sf_interpolate(val, range_min, val_min, range_max, val_max)
-		// yk_Interpolate(val, val_min,   val_max, range_min, range_max) {
 		if (val <= -0.75f) 
 			return 0.0f;
 		else if (val <= -0.25f) 

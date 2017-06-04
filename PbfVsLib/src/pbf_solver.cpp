@@ -4,13 +4,11 @@
 #include <cmath>
 
 #include "../include/aabb.h"
-#include "../include/basic.h"
+#include "../include/kernel.h"
 
 namespace pbf {
 
 	void PbfSolver::CustomConfigure_(const PbfSolverConfig& config) {
-		// init kernel function constants
-		kernel_.set_h(h_);
 		// init spatial hash
 		spatial_hash_.set_cell_size(config.spatial_hash_cell_size);
 	}
@@ -159,7 +157,7 @@ namespace pbf {
 		for (size_t p_j : ptc_records_[p_i].neighbor_idxs) {
 			const auto pos_j = ps_->Get(p_j).position();
 
-			vec_t gradient_j = kernel_.Gradient(pos_i - pos_j) * rho_0_recpr_;
+			vec_t gradient_j = SpikyGradient(pos_i - pos_j, h_) * rho_0_recpr_;
 			sum_gradient += glm::dot(gradient_j, gradient_j);
 			gradient_i += gradient_j;
 		}
@@ -179,7 +177,7 @@ namespace pbf {
 		for (size_t p_j : ptc_records_[p_i].neighbor_idxs) {
 			const auto pos_j = ps_->Get(p_j).position();
 			
-			result += mass_ * kernel_.Evaluate(pos_i - pos_j);
+			result += mass_ * Poly6Value(pos_i - pos_j, h_);
 		}
 		result = (result * rho_0_recpr_) - 1.0f;
 		return result;
@@ -196,7 +194,7 @@ namespace pbf {
 			const float lambda_j = ptc_records_[p_j].lambda;
 			const auto pos_diff_ji = pos_i - pos_j;
 			const float scorr_ij = ComputScorr_(pos_diff_ji);
-			result += (lambda_i + lambda_j + scorr_ij) * kernel_.Gradient(pos_diff_ji);
+			result += (lambda_i + lambda_j + scorr_ij) * SpikyGradient(pos_diff_ji, h_);
 		}
 		result *= rho_0_recpr_;
 		return result;
@@ -204,7 +202,7 @@ namespace pbf {
 		
 	float PbfSolver::ComputScorr_(const vec_t pos_diff_ji) const {
 		// Eq (13)
-		float x = kernel_.Evaluate(pos_diff_ji) / kernel_.Evaluate(corr_delta_q_coeff_ * h_);
+		float x = Poly6Value(pos_diff_ji, h_) / Poly6Value(corr_delta_q_coeff_ * h_, h_);
 		float result = (-corr_k_) * std::pow(x, (float)corr_n_);
 		return result;
 	}
@@ -219,8 +217,7 @@ namespace pbf {
 			const auto vel_j = ps_->Get(p_j).velocity();
 			
 			const vec_t vel_diff_ij = vel_j - vel_i;
-			// const vec_t gradient = kernel_.WViscosity(pos_i - pos_j);
-			const vec_t gradient = kernel_.Gradient(pos_i - pos_j);
+			const vec_t gradient = SpikyGradient(pos_i - pos_j, h_);
 			result += glm::cross(vel_diff_ij, gradient);
 		}
 		return result;
@@ -245,7 +242,7 @@ namespace pbf {
 		for (size_t p_j : ptc_records_[p_i].neighbor_idxs) {
 			const auto pos_diff_ji = pos_i - ps_->Get(p_j).position();
 			const float omega_j_len = glm::length(ptc_records_[p_j].vorticity);
-			const auto gradient = kernel_.Gradient(pos_diff_ji);
+			const auto gradient = SpikyGradient(pos_diff_ji, h_);
 			result += (omega_j_len * gradient);
 		}
 		return result;
@@ -262,7 +259,7 @@ namespace pbf {
 			const auto vel_j = ps_->Get(p_j).velocity();
 
 			const vec_t vel_diff_ij = vel_j - vel_i;
-			float w = kernel_.Evaluate(pos_i - pos_j);
+			float w = Poly6Value(pos_i - pos_j, h_);
 			result += (w * vel_diff_ij);
 		}
 		result *= xsph_c_;

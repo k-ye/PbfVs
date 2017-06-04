@@ -15,9 +15,6 @@
     <ClInclude Include="include\arcball_camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\basic.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="include\config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -75,6 +72,16 @@
     <ClInclude Include="include\cuda_basic.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="typedefs.h" />
+    <ClInclude Include="include\shared_math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\typedefs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\kernel.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\aabb.cpp">
@@ -111,6 +118,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\typedefs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kernel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

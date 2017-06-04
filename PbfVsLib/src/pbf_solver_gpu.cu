@@ -1,12 +1,14 @@
-#include "..\include\pbf_solver_gpu.h"
+#include "../include/pbf_solver_gpu.h"
+
+#include "../include/kernel.cuh"
 
 // CUDA
-#include "..\include\cuda_basic.h"
-#include "..\include\helper_math.h"
-#include <thrust\scan.h>
-#include <thrust\execution_policy.h>
-#include <thrust\copy.h>
-#include <thrust\reduce.h>
+#include "../include/cuda_basic.h"
+#include "../include/helper_math.h"
+#include <thrust/scan.h>
+#include <thrust/execution_policy.h>
+#include <thrust/copy.h>
+#include <thrust/reduce.h>
 
 namespace pbf {
 	constexpr int kNumThreadPerBlock = 512;
@@ -617,36 +619,7 @@ namespace impl_ {
 		positions[ptc_i] = pos_i;
 		velocities[ptc_i] = vel_i;
 	}
-#define PI_FLT (float)3.14159265358979323846264338327950288
-	
-	__device__ constexpr float kPoly6Factor() { return (315.0f / 64.0f / PI_FLT); }
-	
-	__device__ static float Poly6Value(const float s, const float h) {
-		if (s < 0.0f || s >= h) return 0.0f;
 
-		float x = (h * h - s * s) / (h * h * h);
-		float result = kPoly6Factor() * x * x * x;
-		return result;
-	}
-
-	__device__ static float Poly6Value(const float3 r, const float h) {
-		float r_len = length(r);
-		return Poly6Value(r_len, h);
-	}
-	
-	__device__ constexpr float kSpikyGradFactor() { return (-45.0f / PI_FLT); }
-	
-	__device__ static float3 SpikyGradient(const float3 r, const float h) {
-		float r_len = length(r);
-		if (r_len <= 0.0f || r_len >= h) return make_float3(0.0f);
-
-		float x = (h - r_len) / (h * h * h);
-		float g_factor = kSpikyGradFactor() * x * x;
-		float3 result = normalize(r) * g_factor;
-		return result;
-	}
-#undef PI_FLT
-	
 	__global__ static void ComputeLambdaKernel(const float3* positions, const int* ptc_num_neighbors,
 		const int* ptc_neighbor_begins, const int* ptc_neighbor_indices, const int num_ptcs,
 		const float h, const float mass, const float rho_0_recpr, const float epsilon, float* lambdas) 

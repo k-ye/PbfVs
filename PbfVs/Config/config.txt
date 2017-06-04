@@ -1,4 +1,7 @@
+# GPU
 world_size=40.0f
+# CPU
+# world_size=25.0f
 delta_time=0.033f
 
 h=1.2f
@@ -20,7 +23,13 @@ projection_far=1000.0f
 init_arcball_radius=60.0f
 max_arcball_radius=200.0f
 
+# GPU params
 num_particles_width=25
 num_particles_height=25
 num_particle_layers=25
+
+# CPU params
+# num_particles_width=20
+# num_particles_height=20
+# num_particle_layers=10
 particle_interval=1.0f

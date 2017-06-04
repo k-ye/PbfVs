@@ -9,7 +9,7 @@
 #ifndef particle_system_h
 #define particle_system_h
 
-#include "basic.h"
+#include "typedefs.h"
 
 #include <vector>
 

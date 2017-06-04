@@ -1,8 +1,8 @@
 #ifndef pbf_solver_gpu_h
 #define pbf_solver_gpu_h
 
-#include <thrust\device_vector.h>
-#include <thrust\reduce.h>
+#include <thrust/device_vector.h>
+#include <thrust/reduce.h>
 
 #include "aabb.h"
 #include "pbf_solver_base.h"

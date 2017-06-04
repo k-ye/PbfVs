@@ -21,7 +21,6 @@
   <ItemGroup>
     <ClInclude Include="include\aabb.h" />
     <ClInclude Include="include\arcball_camera.h" />
-    <ClInclude Include="include\basic.h" />
     <ClInclude Include="include\config.h" />
     <ClInclude Include="include\constants.h" />
     <ClInclude Include="include\cuda_basic.h" />
@@ -30,6 +29,7 @@
     <ClInclude Include="include\gl_utils.h" />
     <ClInclude Include="include\gravity.h" />
     <ClInclude Include="include\helper_math.h" />
+    <ClInclude Include="include\kernel.cuh" />
     <ClInclude Include="include\kernel.h" />
     <ClInclude Include="include\particle_system.h" />
     <ClInclude Include="include\pbf_solver.h" />
@@ -38,9 +38,12 @@
     <ClInclude Include="include\point_drawer.h" />
     <ClInclude Include="include\renderer.h" />
     <ClInclude Include="include\shader_wrapper.h" />
+    <ClInclude Include="include\shared_math.h" />
     <ClInclude Include="include\sh_position_getter.h" />
     <ClInclude Include="include\spatial_hash.h" />
+    <ClInclude Include="include\typedefs.h" />
     <ClInclude Include="include\utils.h" />
+    <ClInclude Include="typedefs.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\aabb.cpp" />
@@ -48,12 +51,14 @@
     <ClCompile Include="src\config.cpp" />
     <ClCompile Include="src\gl_utils.cpp" />
     <ClCompile Include="src\gravity.cpp" />
+    <ClCompile Include="src\kernel.cpp" />
     <ClCompile Include="src\particle_system.cpp" />
     <ClCompile Include="src\pbf_solver.cpp" />
     <ClCompile Include="src\pbf_solver_base.cpp" />
     <ClCompile Include="src\point_drawer.cpp" />
     <ClCompile Include="src\renderer.cpp" />
     <ClCompile Include="src\shader_wrapper.cpp" />
+    <ClCompile Include="src\typedefs.cpp" />
     <ClCompile Include="src\utils.cpp" />
   </ItemGroup>
   <ItemGroup>
