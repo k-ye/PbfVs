@@ -13,6 +13,10 @@
 - [ ] Enhancement
 - [ ] Optional build on GPU impl
 
+Wave simulation using ~15,000 particles on NVIDIA GeForce GTX 960M.
+
+![](screenshots/wave.gif)
+
 ## TODO
 
 See [Issues](https://github.com/k-ye/PbfVs/issues)
