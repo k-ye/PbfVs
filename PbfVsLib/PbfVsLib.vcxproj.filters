@@ -82,6 +82,9 @@
     <ClInclude Include="include\kernel.cuh">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\boundary_base.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\aabb.cpp">
@@ -124,6 +127,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\kernel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\boundary_base.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\shared_math.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

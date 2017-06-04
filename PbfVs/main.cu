@@ -24,6 +24,7 @@
 #include "include/point_drawer.h"
 #include "include/renderer.h"
 #include "include/shader_wrapper.h"
+#include "include/shared_math.h"
 
 #include "include/aabb.h"
 #include "include/gravity.h"
@@ -73,13 +74,6 @@ void MouseCallback(GLFWwindow* window, double xpos, double ypos);
 
 float max_arcball_radius = 100.0f;
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
-
-float RandomFloat(float a, float b) {
-	float random = ((float)rand()) / (float)RAND_MAX;
-	float diff = b - a;
-	float r = random * diff;
-	return a + r;
-}
 
 ////////////////////////////////////////////////////
 // The MAIN function, from here we start the application and run the game loop
@@ -147,8 +141,7 @@ int main() {
 
 ////////////////////////////////////////////////////
 
-void ConfigureCamera(const pbf::Config& config)
-{
+void ConfigureCamera(const pbf::Config& config) {
 	// config camera
 	camera.SetStageSize(WIDTH, HEIGHT);
 
@@ -161,8 +154,7 @@ void ConfigureCamera(const pbf::Config& config)
 	max_arcball_radius = config.Get<float>(pbf::MAX_ARCBALL_RADIUS);
 }
 
-void ConfigureSolver(const pbf::Config& config)
-{
+void ConfigureSolver(const pbf::Config& config) {
 	pbf::PbfSolverConfig solver_config;
 
 	solver_config.h = config.Get<float>(pbf::H_KERNEL);
@@ -182,8 +174,7 @@ void ConfigureSolver(const pbf::Config& config)
 	solver.Configure(solver_config);
 }
 
-void ConfigureRenderer(const pbf::Config& config)
-{
+void ConfigureRenderer(const pbf::Config& config) {
 	render.SetWorldSize(world_size);
 
 	float fov = 45.0f;
@@ -195,8 +186,7 @@ void ConfigureRenderer(const pbf::Config& config)
 	render.SetPespectiveProjection(fov, aspect, near, far);
 }
 
-void Configure(pbf::Config& config)
-{
+void Configure(pbf::Config& config) {
 	world_size = config.Get<float>(pbf::WORLD_SIZE);
 	delta_time = config.Get<float>(pbf::DELTA_TIME);
 
@@ -228,9 +218,9 @@ void InitParticles(const pbf::Config& config) {
 				float zf = margin + z * interval;
 				const glm::vec3 pos{ xf, yf, zf };
 
-				float vx = RandomFloat(-0.5f, 0.5f);
-				float vy = RandomFloat(0.0f, 1.0f);
-				float vz = RandomFloat(-0.5f, 0.5f);
+				float vx = pbf::GenRandom<float>(-0.5f, 0.5f);
+				float vy = pbf::GenRandom<float>(0.0f, 1.0f);
+				float vz = pbf::GenRandom<float>(-0.5f, 0.5f);
 				const glm::vec3 vel{ vx, vy, vz };
 
 				ps.Add(pos, vel);
@@ -239,8 +229,7 @@ void InitParticles(const pbf::Config& config) {
 	}
 }
 
-void InitDependencies()
-{
+void InitDependencies() {
 	solver.InitParticleSystems(&ps);
 
 	render.SetCamera(&camera);
@@ -250,36 +239,29 @@ void InitDependencies()
 ////////////////////////////////////////////////////
 
 // Is called whenever a key is pressed/released via GLFW
-void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode)
-{
+void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mode) {
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, GL_TRUE);
 	if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
 		is_paused = !is_paused;
 }
 
-void MouseCallback(GLFWwindow* window, double xpos, double ypos)
-{
+void MouseCallback(GLFWwindow* window, double xpos, double ypos) {
 	int action = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
 
-	if (action == GLFW_PRESS)
-	{
-		if (!left_btn_pressed)
-		{
+	if (action == GLFW_PRESS) {
+		if (!left_btn_pressed) {
 			std::cout << "mouse left button just pressed" << std::endl;
 			left_btn_pressed = true;
 			camera.OnMouseLeftClick(xpos, ypos);
 		}
-		else
-		{
+		else {
 			std::cout << "mouse left button dragging" << std::endl;
 			camera.OnMouseLeftDragging(xpos, ypos);
 		}
 	}
-	else
-	{
-		if (left_btn_pressed)
-		{
+	else {
+		if (left_btn_pressed) {
 			left_btn_pressed = false;
 			camera.OnMouseLeftRelease(xpos, ypos);
 			std::cout << "mouse left button released" << std::endl;
@@ -287,13 +269,11 @@ void MouseCallback(GLFWwindow* window, double xpos, double ypos)
 	}
 }
 
-void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
-{
+void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
 	float arcball_radius = camera.GetArcballRadius();
-	arcball_radius += yoffset * 0.1f;
+	arcball_radius += yoffset * 0.25f;
 	std::cout << "scroll! yoffset: " << yoffset << ", radius: " << arcball_radius << std::endl;
-	if (arcball_radius > 0 && arcball_radius < max_arcball_radius)
-	{
+	if (arcball_radius > 0 && arcball_radius < max_arcball_radius) {
 		camera.SetArcballRadius(arcball_radius);
 	}
 }

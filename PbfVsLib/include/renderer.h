@@ -7,7 +7,6 @@
 #include "glm_headers.h"
 #include "particle_system.h"
 
-
 namespace pbf {
     class ArcballCamera;
     class ParticleSystem;
@@ -32,8 +31,8 @@ namespace pbf {
         
         void Render();
         
-    private:
         void SetVao_(GLuint vao, GLuint vbo, GLuint ebo) const;
+    private:
         
         pbf::ArcballCamera* camera_;
         pbf::ParticleSystem* ps_;
@@ -43,8 +42,6 @@ namespace pbf {
         glm::mat4 proj_;
         
         GLuint shader_program_;
-        
-        ////////////////////////////////////////////////////
         // *world* is a cube that defines the boundary of the PBF.
         // It is not the rendering stage.
         GLfloat world_sz_;
@@ -55,8 +52,6 @@ namespace pbf {
         
         std::vector<GLfloat> world_cube_vertices_;
         std::vector<GLuint> world_cube_indices_;
-		
-		////////////////////////////////////////////////////
         // xyz frame (coordinate) 
 		GLuint frame_vao_;
         GLuint frame_vbo_;
@@ -64,10 +59,7 @@ namespace pbf {
         
         std::vector<GLfloat> frame_vertices_;
         std::vector<GLuint> frame_indices_;
-        
-        ////////////////////////////////////////////////////
         // particles
-        
         GLuint particles_vao_;
         GLuint particles_vbo_;
         GLuint particles_ebo_;

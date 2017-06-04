@@ -30,6 +30,7 @@ namespace pbf {
 	class PbfSolverBase {
 	public:
 		PbfSolverBase();
+		virtual ~PbfSolverBase() = default;
 
 		void Configure(const PbfSolverConfig& config);
 		

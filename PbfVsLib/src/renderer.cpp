@@ -228,21 +228,6 @@ namespace {
         glDrawElements(GL_TRIANGLES, (int)particle_indices_.size(), GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
         
-        glUseProgram(0);
-
-		// draw the xyz coordinate
-		// auto glDrawLine = [](const point_t& to, const vec_t& color) {
-		// 	glLineWidth(1.0f);
-		// 	glColor3f(color.x, color.y, color.z);
-		// 	glBegin(GL_LINE);
-		// 	// a little bit shift from the origin (0, 0, 0)
-		// 	glVertex3f(-1.0f, -1.0f, -1.0f);
-		// 	glVertex3f(to.x, to.y, to.z);
-		// 	glEnd();
-		// };
-
-		// glDrawLine({ 1.0f, -1.0f, -1.0f }, { 1.0f, 0.0f, 0.0f }); // red for x
-		// glDrawLine({ -1.0f, -1.0f, 1.0f }, { 0.0f, 1.0f, 0.0f }); // green for z
-		// glDrawLine({ -1.0f, 1.0f, -1.0f }, { 0.0f, 0.0f, 1.0f }); // blue for y
+        glUseProgram(0); 
     }
 } // namespace pbf

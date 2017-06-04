@@ -1,6 +1,8 @@
 #ifndef config_h
 #define config_h
 
+#include "typedefs.h"
+
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -8,8 +10,6 @@
 
 namespace pbf {
 namespace detail_ {
-    template <typename T>
-    struct TypeTrait { typedef T type; };
     
     ////////////////////////////////////////////////////
 	// Casters from std::string to some type.

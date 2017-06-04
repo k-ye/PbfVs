@@ -1,19 +1,19 @@
 #include "CppUnitTest.h"
 #include "stdafx.h"
 
-#include "include\aabb.h"
-#include "include\particle_system.h"
-#include "include\sh_position_getter.h"
-#include "include\spatial_hash.h"
-#include "include\cuda_basic.h"
-#include "include\helper_math.h"
+#include "include/aabb.h"
+#include "include/particle_system.h"
+#include "include/sh_position_getter.h"
+#include "include/spatial_hash.h"
+#include "include/cuda_basic.h"
+#include "include/helper_math.h"
+#include "include/shared_math.h"
 
-#include "include\pbf_solver_gpu.h"
+#include "include/pbf_solver_gpu.h"
 
-#include <thrust\execution_policy.h>
-#include <thrust\host_vector.h>
+#include <thrust/execution_policy.h>
+#include <thrust/host_vector.h>
 #include <sstream>
-#include <stdlib.h> // srand, rand
 #include <string>
 #include <time.h> // time
 #include <unordered_set>
@@ -42,15 +42,10 @@ namespace {
 	// Cell size of the data structure being tested.
 	const float kTestDsCellSize = 1.5f;
 
-	float GenRandomFloat(float lo, float hi) {
-		float result = static_cast<float>(rand()) / static_cast<float>(RAND_MAX / (hi - lo)) + lo;
-		return result;
-	}
-
 	point_t GenRandomPoint() {
-		int x = rand() % kNumCellsPerDim;
-		int y = rand() % kNumCellsPerDim;
-		int z = rand() % kNumCellsPerDim;
+		int x = GenRandom<int>(0, kNumCellsPerDim);
+		int y = GenRandom<int>(0, kNumCellsPerDim);	
+		int z = GenRandom<int>(0, kNumCellsPerDim);
 		
 		point_t result;
 		result.x = x * kCellSize + kHalfCellSize;
@@ -61,8 +56,7 @@ namespace {
 
 	AABB GetQueryAABB() {
 		point_t kAabbMin{ kCellSize * kAabbOffsetByCell };
-		point_t kAabbMax{ kCellSize * (kNumCellsPerDim - 
-			kAabbOffsetByCell) };
+		point_t kAabbMax{ kCellSize * (kNumCellsPerDim - kAabbOffsetByCell) };
 		AABB aabb{ kAabbMin, kAabbMax };
 		return aabb;
 	}
@@ -230,9 +224,9 @@ namespace {
 		std::unordered_set<size_t> neighbor_ptcs_ref_;
 		
 		float3 GenRandomPos() const {
-			float x = GenRandomFloat(0.1f, this->kWorldSize - 0.1f);
-			float y = GenRandomFloat(0.1f, this->kWorldSize - 0.1f);
-			float z = GenRandomFloat(0.1f, this->kWorldSize - 0.1f);
+			float x = GenRandom<float>(0.1f, this->kWorldSize - 0.1f);
+			float y = GenRandom<float>(0.1f, this->kWorldSize - 0.1f);
+			float z = GenRandom<float>(0.1f, this->kWorldSize - 0.1f);
 			return make_float3(x, y, z);
 		};
 

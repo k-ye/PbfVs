@@ -12,6 +12,17 @@ namespace pbf {
 
 	float3 Convert(const glm::vec3& v);
 	glm::vec3 Convert(const float3& v);
+
+    ////////////////////////////////////////////////////
+	// Trait helpers
+	template <typename T>
+    struct TypeTrait { typedef T type; };
+
+	template <bool cond, typename Then, typename Else>
+	struct IfElse { typedef Else type; };
+
+	template <typename Then, typename Else>
+	struct IfElse<true, Then, Else> { typedef Then type; };
 } // namespace pbf
 
 #endif // pbf_typedefs_h
