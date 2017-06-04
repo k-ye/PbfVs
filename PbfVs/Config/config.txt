@@ -1,5 +1,5 @@
 world_size=40.0f
-delta_time=0.016f
+delta_time=0.033f
 
 h=1.2f
 mass=1.0f

@@ -9,7 +9,7 @@
 #include <thrust\reduce.h>
 
 namespace pbf {
-	constexpr int kNumThreadPerBlock = 256;
+	constexpr int kNumThreadPerBlock = 512;
 	
 	float3 Convert(const point_t& pt) { return make_float3(pt.x, pt.y, pt.z); }
 
@@ -586,6 +586,7 @@ namespace impl_ {
 #undef GRAVITY_Y
 
 	__global__ static void ImposeBoundaryConstraintKernel(const int num_ptcs, const float world_size,
+		const float board_x, const float board_vel_x,
 		float3* positions, float3* velocities)
 	{
 		const int ptc_i = (blockDim.x * blockIdx.x) + threadIdx.x;
@@ -598,11 +599,21 @@ namespace impl_ {
 		vel_i.##D = 0.0f; \
 		pos_i.##D = max(0.0f, min(world_size, pos_i.##D)); \
 	}
-		IMPOSE_ON_DIM(x);
+		// IMPOSE_ON_DIM(x);
 		IMPOSE_ON_DIM(y);
 		IMPOSE_ON_DIM(z);
 #undef IMPOSE_ON_DIM
-
+		if (pos_i.x <= 0.0f) {
+			vel_i.x = 0.0f;
+			pos_i.x = 0.0f;
+		}
+		else if (pos_i.x >= board_x) {
+			float vel_x_rel = vel_i.x - board_vel_x;
+			if (vel_x_rel > 0.0f) {
+				vel_i.x = board_vel_x;
+			}
+			pos_i.x = board_x;
+		}
 		positions[ptc_i] = pos_i;
 		velocities[ptc_i] = vel_i;
 	}
@@ -817,6 +828,9 @@ namespace impl_ {
 	
 	void PbfSolverGpu::CustomConfigure_(const PbfSolverConfig& config) {
 		cell_grid_size_ = config.spatial_hash_cell_size;
+
+		board_x_ = world_size_ - 1.0f;
+		board_x_vel_ = -5.0f;
 	}
 	
 	void PbfSolverGpu::CustomInitPs_() {
@@ -849,6 +863,20 @@ namespace impl_ {
 	}
 	
 	void PbfSolverGpu::Update(float dt) {
+
+		board_x_ += board_x_vel_ * dt;
+		bool change_board_x_vel_dir = false;
+		if (board_x_ < world_size_ * 0.5f) {
+			board_x_ = world_size_ * 0.5f;
+			change_board_x_vel_dir = true;
+		}
+		else if (board_x_ > world_size_ - 0.5f) {
+			board_x_ = world_size_ - 0.5f;
+			change_board_x_vel_dir = true;
+		}
+		if (change_board_x_vel_dir)
+			board_x_vel_ = -board_x_vel_;
+
 		ResetParticleRecords_();
 		RecordOldPositions_();
 
@@ -902,7 +930,7 @@ namespace impl_ {
 	void PbfSolverGpu::ImposeBoundaryConstraint_() {
 		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
 		ImposeBoundaryConstraintKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(
-			num_ptcs_, world_size_, PositionsPtr_(), VelocitiesPtr_());
+			num_ptcs_, world_size_, board_x_, board_x_vel_, PositionsPtr_(), VelocitiesPtr_());
 		cudaDeviceSynchronize();
 		checkCudaErrors(cudaGetLastError());
 	}

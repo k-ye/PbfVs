@@ -126,6 +126,10 @@ namespace pbf {
 		d_vector<float3> vorticities_;
 		d_vector<float3> vorticity_corr_forces_;
 		d_vector<float3> xsphs_;
+
+		// adhoc dynamic constraint
+		float board_x_;
+		float board_x_vel_;
 	};
 
 	// For test purpose only
