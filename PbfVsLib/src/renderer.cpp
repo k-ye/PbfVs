@@ -35,13 +35,13 @@ namespace {
 	float Blue(float val) { return Base_(val + 0.5f); }
 } // namespace anonymous
 
-    void SceneRenderer::SetWorldSize(float s) {
-        world_sz_ = s;
-        
-        float half_sz = s * 0.5f;
-        
+    void SceneRenderer::SetWorldSize(const vec_t& s) {
+        world_sz_x_ = s.x;
+        world_sz_y_ = s.y;
+        world_sz_z_ = s.z;
+                
         glm::mat4 model;
-        model = glm::translate(model, glm::vec3(-half_sz, -half_sz, -half_sz));
+        model = glm::translate(model, glm::vec3(-s.x * 0.5f, -s.y * 0.5f, -s.z * 0.5f));
         model_ = model;
     }
     
@@ -96,13 +96,13 @@ namespace {
         world_cube_vertices_ = {
 			// position          color
             0.0f, 0.0f, 0.0f, 1.0f, 0.5f, 0.2f,                  // 0, left, bottom, far
-            world_sz_, 0.0f, 0.0f, 1.0f, 0.5f, 0.2f,             // 1, right, bottom, far
-            world_sz_, 0.0f, world_sz_, 1.0f, 0.5f, 0.2f,        // 2, right, bottom, near
-            0.0f, 0.0f, world_sz_, 1.0f, 0.5f, 0.2f,             // 3, left, bottom, near
-            0.0f, world_sz_, 0.0f, 1.0f, 0.5f, 0.2f,             // 4, left, top, far
-            world_sz_, world_sz_, 0.0f, 1.0f, 0.5f, 0.2f,        // 5, right, top, far
-            world_sz_, world_sz_, world_sz_, 1.0f, 0.5f, 0.2f,   // 6, right, top, near
-            0.0f, world_sz_, world_sz_, 1.0f, 0.5f, 0.2f,        // 7, left, top, near
+            world_sz_x_, 0.0f, 0.0f, 1.0f, 0.5f, 0.2f,             // 1, right, bottom, far
+            world_sz_x_, 0.0f, world_sz_z_, 1.0f, 0.5f, 0.2f,        // 2, right, bottom, near
+            0.0f, 0.0f, world_sz_z_, 1.0f, 0.5f, 0.2f,             // 3, left, bottom, near
+            0.0f, world_sz_y_, 0.0f, 1.0f, 0.5f, 0.2f,             // 4, left, top, far
+            world_sz_x_, world_sz_y_, 0.0f, 1.0f, 0.5f, 0.2f,        // 5, right, top, far
+            world_sz_x_, world_sz_y_, world_sz_z_, 1.0f, 0.5f, 0.2f,   // 6, right, top, near
+            0.0f, world_sz_y_, world_sz_z_, 1.0f, 0.5f, 0.2f,        // 7, left, top, near
         };
         
         world_cube_indices_ = {
@@ -213,7 +213,7 @@ namespace {
         // https://www.gamedev.net/topic/597387-vao-is-it-necessary-to-redo-setup-each-time-buffer-data-changes/ 
         for (size_t p_i = 0; p_i < ps_->NumParticles(); ++p_i) {
 			const auto pos = ps_->Get(p_i).position();
-			float col_in = Interpolate(pos.y + world_sz_ * 0.5f, 0.0f, world_sz_, 0.0f, 1.0f);
+			float col_in = Interpolate(pos.y + world_sz_y_ * 0.5f, 0.0f, world_sz_y_, 0.0f, 1.0f);
 			col_in = std::max(std::min(col_in, 1.0f), 0.0f);
 			const glm::vec3 color{ 1.0f, col_in, 1.0f - col_in };
 			ChangePointToDraw(pos, p_i, &particle_vertices_, color);

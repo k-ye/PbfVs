@@ -1,9 +1,4 @@
-# GPU
-world_size=40.0f
-# CPU
-# world_size=25.0f
-delta_time=0.033f
-
+particle_interval=1.0f
 h=1.2f
 mass=1.0f
 rho_0=1.0f
@@ -24,12 +19,19 @@ init_arcball_radius=60.0f
 max_arcball_radius=200.0f
 
 # GPU params
+world_size_x=60.0f
+world_size_y=30.0f
+world_size_z=30.0f
+delta_time=0.033f
 num_particles_width=25
 num_particles_height=25
 num_particle_layers=25
 
 # CPU params
+# world_size_x=30.0f
+# world_size_y=20.0f
+# world_size_z=20.0f
+# delta_time=0.016f
 # num_particles_width=20
 # num_particles_height=20
 # num_particle_layers=10
-particle_interval=1.0f

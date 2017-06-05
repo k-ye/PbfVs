@@ -762,9 +762,6 @@ namespace impl_ {
 	
 	void PbfSolverGpu::CustomConfigure_(const PbfSolverConfig& config) {
 		cell_grid_size_ = config.spatial_hash_cell_size;
-
-		board_x_ = world_size_ - 1.0f;
-		board_x_vel_ = -5.0f;
 	}
 	
 	void PbfSolverGpu::CustomInitPs_() {
@@ -805,19 +802,6 @@ namespace impl_ {
     }
 
 	void PbfSolverGpu::Update(float dt) {
-		board_x_ += board_x_vel_ * dt;
-		bool change_board_x_vel_dir = false;
-		if (board_x_ < world_size_ * 0.5f) {
-			board_x_ = world_size_ * 0.5f;
-			change_board_x_vel_dir = true;
-		}
-		else if (board_x_ > world_size_ - 0.5f) {
-			board_x_ = world_size_ - 0.5f;
-			change_board_x_vel_dir = true;
-		}
-		if (change_board_x_vel_dir)
-			board_x_vel_ = -board_x_vel_;
-
 		ResetParticleRecords_();
 		RecordOldPositions_();
 
@@ -874,7 +858,7 @@ namespace impl_ {
 	}
 	
 	void PbfSolverGpu::FindNeighbors_() {
-		const float3 world_sz_dim = make_float3(world_size_);
+		const float3 world_sz_dim = make_float3(world_size_x_, world_size_y_, world_size_z_);
 		
 		CellGridGpu cell_grid{ world_sz_dim, cell_grid_size_ };
         auto& d_positions = *(ps_adaptor_->PositionsVec());

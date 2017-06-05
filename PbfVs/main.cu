@@ -36,7 +36,6 @@
 // Window dimensions
 const GLuint WIDTH = 800, HEIGHT = 600;
 
-float world_size = 0.0f;
 float delta_time = 0.0f;
 
 // Camera instance
@@ -85,9 +84,9 @@ public:
     void Configure(const pbf::Config& config) {
         x_hi_index_ = 1;
         x_vel_ = 5.0f;
-        const float world_size = config.Get<float>(pbf::WORLD_SIZE);
-        x_lo_ = world_size * 0.5f;
-        x_hi_ = world_size - 0.5f;
+        const float world_size_x = config.Get<float>(pbf::WORLD_SIZE_X);
+        x_lo_ = world_size_x * 0.5f;
+        x_hi_ = world_size_x - 0.5f;
     }
 
     void Update(float dt) {
@@ -195,25 +194,26 @@ void ConfigureCamera(const pbf::Config& config) {
 void ConfigureBoundaryConstraint(const pbf::Config& config) {
     using pbf::vec_t;
 
-    const float world_size = config.Get<float>(pbf::WORLD_SIZE);
     pbf::BoundaryPlane bp;
     // X lo
+    const float world_size_x = config.Get<float>(pbf::WORLD_SIZE_X);
     bp.position = vec_t{ 0.0f, 0.0f, 0.0f };
     bp.velocity = vec_t{ 0.0f };
     bp.normal = vec_t{ 1.0f, 0.0f, 0.0f };
     boundary_constraint.Add(bp);
     // X hi
-    bp.position = vec_t{ world_size, 0.0f, 0.0f };
+    bp.position = vec_t{ world_size_x, 0.0f, 0.0f };
     bp.velocity = vec_t{ 0.0f };
     bp.normal = vec_t{ -1.0f, 0.0f, 0.0f };
     boundary_constraint.Add(bp);
     // Z lo
+    const float world_size_z = config.Get<float>(pbf::WORLD_SIZE_Z);
     bp.position = vec_t{ 0.0f, 0.0f, 0.0f };
     bp.velocity = vec_t{ 0.0f };
     bp.normal = vec_t{ 0.0f, 0.0f, 1.0f };
     boundary_constraint.Add(bp);
     // Z hi
-    bp.position = vec_t{ 0.0f, 0.0f, world_size };
+    bp.position = vec_t{ 0.0f, 0.0f, world_size_z };
     bp.velocity = vec_t{ 0.0f };
     bp.normal = vec_t{ 0.0f, 0.0f, -1.0f };
     boundary_constraint.Add(bp);
@@ -222,7 +222,7 @@ void ConfigureBoundaryConstraint(const pbf::Config& config) {
     bp.velocity = vec_t{ 0.0f };
     bp.normal = vec_t{ 0.0f, 1.0f, 0.0f };
     boundary_constraint.Add(bp);
-    // No top cover
+    // No Y hi, top not covered
 }
 
 void ConfigureSolver(const pbf::Config& config) {
@@ -239,14 +239,19 @@ void ConfigureSolver(const pbf::Config& config) {
 	solver_config.vorticity_epsilon = config.Get<float>(pbf::VORTICITY_EPSILON);
 	solver_config.xsph_c = config.Get<float>(pbf::XSPH_C);
 
-	solver_config.world_size = config.Get<float>(pbf::WORLD_SIZE);
+	solver_config.world_size_x = config.Get<float>(pbf::WORLD_SIZE_X);
+	solver_config.world_size_y = config.Get<float>(pbf::WORLD_SIZE_Y);
+	solver_config.world_size_z = config.Get<float>(pbf::WORLD_SIZE_Z);
 	solver_config.spatial_hash_cell_size = config.Get<float>(pbf::SH_CELL_SIZE);
 
 	solver.Configure(solver_config);
 }
 
 void ConfigureRenderer(const pbf::Config& config) {
-	render.SetWorldSize(world_size);
+	float world_size_x = config.Get<float>(pbf::WORLD_SIZE_X);
+	float world_size_y = config.Get<float>(pbf::WORLD_SIZE_Y);
+	float world_size_z = config.Get<float>(pbf::WORLD_SIZE_Z);
+    render.SetWorldSize(pbf::vec_t{ world_size_x, world_size_y, world_size_z });
 
 	float fov = 45.0f;
 	config.GetOptional(pbf::FOV, &fov);
@@ -258,7 +263,6 @@ void ConfigureRenderer(const pbf::Config& config) {
 }
 
 void Configure(pbf::Config& config) {
-	world_size = config.Get<float>(pbf::WORLD_SIZE);
 	delta_time = config.Get<float>(pbf::DELTA_TIME);
 
 	ConfigureCamera(config);
@@ -270,22 +274,27 @@ void Configure(pbf::Config& config) {
 void InitParticles(const pbf::Config& config) {
 	srand(time(nullptr));
 
-	// float half_world_size = world_size * 0.5f;
 	unsigned num_x = config.Get<unsigned>(pbf::NUM_PTCS_WIDTH);
 	unsigned num_z = config.Get<unsigned>(pbf::NUM_PTCS_HEIGHT);
 	unsigned num_y = config.Get<unsigned>(pbf::NUM_PTC_LAYERS);
+	float world_size_x = config.Get<float>(pbf::WORLD_SIZE_X);
+	float world_size_y = config.Get<float>(pbf::WORLD_SIZE_Y);
+	float world_size_z = config.Get<float>(pbf::WORLD_SIZE_Z);
 	float interval = config.Get<float>(pbf::PARTICLE_INTERVAL);
 
-	// glm::vec3 velocity{ 0.0f };
-
-	float margin = (world_size - (num_x - 1) * interval) * 0.5f;
+    auto ComputeMargin = [=](float world_sz_dim, unsigned num_dim) -> float {
+        return (world_sz_dim - ((num_dim - 1) * interval)) * 0.5f;
+    };
 
 	for (unsigned y = 0; y < num_y; ++y) {
+        float margin_y = ComputeMargin(world_size_y, num_y);
 		for (unsigned z = 0; z < num_z; ++z) {
+            float margin_z = ComputeMargin(world_size_z, num_z);
 			for (unsigned x = 0; x < num_x; ++x) {
-				float xf = margin + x * interval;
-				float yf = world_size - margin - y * interval;
-				float zf = margin + z * interval;
+                float margin_x = ComputeMargin(world_size_x, num_x);
+				float xf = margin_x + x * interval;
+				float yf = world_size_y - margin_y - y * interval;
+				float zf = margin_z + z * interval;
 				const glm::vec3 pos{ xf, yf, zf };
 
 				float vx = pbf::GenRandom(-0.5f, 0.5f);

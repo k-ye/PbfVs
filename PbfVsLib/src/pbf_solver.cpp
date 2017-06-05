@@ -102,15 +102,16 @@ namespace pbf {
 	}
 	
 	void PbfSolver::ImposeBoundaryConstraint_() {
+        const vec_t world_sz_dim{ world_size_x_, world_size_y_, world_size_z_ };
 		for (size_t ptc_i = 0; ptc_i < ps_->NumParticles(); ++ptc_i) {
 			auto ptc = ps_->Get(ptc_i);
 			auto pos = ptc.position();
 			auto vel = ptc.velocity();
 
 			for (int c = 0; c < 3; ++c) {
-				if (pos[c] <= 0.0f || (pos[c] >= world_size_ - kFloatEpsilon)) {
+				if (pos[c] <= 0.0f || (pos[c] >= world_sz_dim[c] - kFloatEpsilon)) {
 					vel[c] = 0.0f;
-					pos[c] = std::max(0.0f, std::min(world_size_ - kFloatEpsilon, pos[c]));
+					pos[c] = std::max(0.0f, std::min(world_sz_dim[c] - kFloatEpsilon, pos[c]));
 				}
 			}
 			

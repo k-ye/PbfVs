@@ -10,6 +10,9 @@ namespace pbf {
 
 	// World settings 
 	const std::string WORLD_SIZE = "world_size";
+    const std::string WORLD_SIZE_X = "world_size_x";
+    const std::string WORLD_SIZE_Y = "world_size_y";
+    const std::string WORLD_SIZE_Z = "world_size_z";
 	const std::string DELTA_TIME = "delta_time";
 
 	// Camera

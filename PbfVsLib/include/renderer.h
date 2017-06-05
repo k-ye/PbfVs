@@ -17,7 +17,7 @@ namespace pbf {
         SceneRenderer(const SceneRenderer&) = delete;
         SceneRenderer& operator=(const SceneRenderer&) = delete;
         
-        void SetWorldSize(float s);
+        void SetWorldSize(const vec_t& s);
         
         void SetCamera(pbf::ArcballCamera* camera);
         
@@ -44,7 +44,9 @@ namespace pbf {
         GLuint shader_program_;
         // *world* is a cube that defines the boundary of the PBF.
         // It is not the rendering stage.
-        GLfloat world_sz_;
+        GLfloat world_sz_x_;
+        GLfloat world_sz_y_;
+        GLfloat world_sz_z_;
         
         GLuint world_vao_;
         GLuint world_vbo_;

@@ -23,7 +23,10 @@ namespace pbf {
 		float vorticity_epsilon;
 		float xsph_c;
 
-		float world_size;
+        float world_size_x;
+        float world_size_y;
+        float world_size_z;
+        // TODO: spatial_hash should be renamed
 		float spatial_hash_cell_size;
 	};
 
@@ -66,7 +69,10 @@ namespace pbf {
 		float vorticity_epsilon_;
 		float xsph_c_;
 
-		float world_size_;
+        float world_size_x_;
+        float world_size_y_;
+        float world_size_z_;
+
 
 		ParticleSystem* ps_;
 	};
