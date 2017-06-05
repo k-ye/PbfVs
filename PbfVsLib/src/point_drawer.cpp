@@ -12,7 +12,7 @@ namespace pbf {
 namespace {
     // One octahedron has 6 vertices and 8 faces. Each vertex stores
     // its (position, color), which requires 6 GLfloats.Therefore,
-    // each vertex is associated with 6 * 6 = 26 GLfloats
+    // each vertex is associated with 6 * 6 = 36 GLfloats
     // and 8 * 3 = 24 GLuints.
     enum { VERTEX_DATA_PER_POINT = 36u, INDEX_DATA_PER_POINT = 24u };
     

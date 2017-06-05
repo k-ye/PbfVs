@@ -23,7 +23,7 @@ world_size_x=60.0f
 world_size_y=30.0f
 world_size_z=30.0f
 delta_time=0.033f
-num_particles_width=25
+num_particles_width=30
 num_particles_height=25
 num_particle_layers=25
 

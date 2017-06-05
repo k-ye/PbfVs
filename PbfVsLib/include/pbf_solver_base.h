@@ -73,7 +73,6 @@ namespace pbf {
         float world_size_y_;
         float world_size_z_;
 
-
 		ParticleSystem* ps_;
 	};
 } // namespace pbf

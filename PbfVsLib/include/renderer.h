@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "glm_headers.h"
+#include "boundary_base.h"
 #include "particle_system.h"
 
 namespace pbf {
@@ -32,6 +33,11 @@ namespace pbf {
         void Render();
         
         void SetVao_(GLuint vao, GLuint vbo, GLuint ebo) const;
+        
+        void PrepareBoundaryBuffers_();
+
+        void UpdateBoundaryAt_(size_t i);
+        
     private:
         
         pbf::ArcballCamera* camera_;
@@ -42,18 +48,19 @@ namespace pbf {
         glm::mat4 proj_;
         
         GLuint shader_program_;
+
         // *world* is a cube that defines the boundary of the PBF.
-        // It is not the rendering stage.
         GLfloat world_sz_x_;
         GLfloat world_sz_y_;
         GLfloat world_sz_z_;
+        // world boundary
+        GLuint boundaries_vao_;
+        GLuint boundaries_vbo_;
+        GLuint boundaries_ebo_;
         
-        GLuint world_vao_;
-        GLuint world_vbo_;
-        GLuint world_ebo_;
+        std::vector<GLfloat> boundary_vertices_;
+        std::vector<GLuint> boundary_indices_;
         
-        std::vector<GLfloat> world_cube_vertices_;
-        std::vector<GLuint> world_cube_indices_;
         // xyz frame (coordinate) 
 		GLuint frame_vao_;
         GLuint frame_vbo_;
@@ -68,7 +75,16 @@ namespace pbf {
         
         std::vector<GLfloat> particle_vertices_;
         std::vector<GLuint> particle_indices_;
-		
+
+    public:
+        // public for quick implementation
+        struct BoundaryRecord {
+            size_t index;
+            float v1_len;
+            float v2_len;
+        };
+        std::vector<BoundaryRecord> boundary_records_;
+        BoundaryConstraintBase* boundary_constraint_;
     };
 } // namespace pbf
 

@@ -37,6 +37,7 @@
 const GLuint WIDTH = 800, HEIGHT = 600;
 
 float delta_time = 0.0f;
+glm::vec3 world_size_dim{ 0.0f };
 
 // Camera instance
 pbf::ArcballCamera camera;
@@ -83,9 +84,9 @@ public:
 
     void Configure(const pbf::Config& config) {
         x_hi_index_ = 1;
-        x_vel_ = 5.0f;
+        x_vel_ = 6.0f;
         const float world_size_x = config.Get<float>(pbf::WORLD_SIZE_X);
-        x_lo_ = world_size_x * 0.5f;
+        x_lo_ = world_size_x * 0.6f;
         x_hi_ = world_size_x - 0.5f;
     }
 
@@ -194,21 +195,22 @@ void ConfigureCamera(const pbf::Config& config) {
 void ConfigureBoundaryConstraint(const pbf::Config& config) {
     using pbf::vec_t;
 
+    const float world_size_x= world_size_dim.x;
+    const float world_size_y= world_size_dim.y;
+    const float world_size_z= world_size_dim.z;
     pbf::BoundaryPlane bp;
     // X lo
-    const float world_size_x = config.Get<float>(pbf::WORLD_SIZE_X);
     bp.position = vec_t{ 0.0f, 0.0f, 0.0f };
     bp.velocity = vec_t{ 0.0f };
     bp.normal = vec_t{ 1.0f, 0.0f, 0.0f };
     boundary_constraint.Add(bp);
     // X hi
-    bp.position = vec_t{ world_size_x, 0.0f, 0.0f };
+    bp.position = vec_t{ world_size_x, 0.0f, world_size_z };
     bp.velocity = vec_t{ 0.0f };
     bp.normal = vec_t{ -1.0f, 0.0f, 0.0f };
     boundary_constraint.Add(bp);
     // Z lo
-    const float world_size_z = config.Get<float>(pbf::WORLD_SIZE_Z);
-    bp.position = vec_t{ 0.0f, 0.0f, 0.0f };
+    bp.position = vec_t{ world_size_x, 0.0f, 0.0f };
     bp.velocity = vec_t{ 0.0f };
     bp.normal = vec_t{ 0.0f, 0.0f, 1.0f };
     boundary_constraint.Add(bp);
@@ -218,7 +220,7 @@ void ConfigureBoundaryConstraint(const pbf::Config& config) {
     bp.normal = vec_t{ 0.0f, 0.0f, -1.0f };
     boundary_constraint.Add(bp);
     // Y lo
-    bp.position = vec_t{ 0.0f, 0.0f, 0.0f };
+    bp.position = vec_t{ world_size_x, 0.0f, 0.0f };
     bp.velocity = vec_t{ 0.0f };
     bp.normal = vec_t{ 0.0f, 1.0f, 0.0f };
     boundary_constraint.Add(bp);
@@ -239,19 +241,16 @@ void ConfigureSolver(const pbf::Config& config) {
 	solver_config.vorticity_epsilon = config.Get<float>(pbf::VORTICITY_EPSILON);
 	solver_config.xsph_c = config.Get<float>(pbf::XSPH_C);
 
-	solver_config.world_size_x = config.Get<float>(pbf::WORLD_SIZE_X);
-	solver_config.world_size_y = config.Get<float>(pbf::WORLD_SIZE_Y);
-	solver_config.world_size_z = config.Get<float>(pbf::WORLD_SIZE_Z);
+    solver_config.world_size_x = world_size_dim.x;
+    solver_config.world_size_y = world_size_dim.y;
+    solver_config.world_size_z = world_size_dim.z;
 	solver_config.spatial_hash_cell_size = config.Get<float>(pbf::SH_CELL_SIZE);
 
 	solver.Configure(solver_config);
 }
 
 void ConfigureRenderer(const pbf::Config& config) {
-	float world_size_x = config.Get<float>(pbf::WORLD_SIZE_X);
-	float world_size_y = config.Get<float>(pbf::WORLD_SIZE_Y);
-	float world_size_z = config.Get<float>(pbf::WORLD_SIZE_Z);
-    render.SetWorldSize(pbf::vec_t{ world_size_x, world_size_y, world_size_z });
+    render.SetWorldSize(world_size_dim);
 
 	float fov = 45.0f;
 	config.GetOptional(pbf::FOV, &fov);
@@ -264,6 +263,10 @@ void ConfigureRenderer(const pbf::Config& config) {
 
 void Configure(pbf::Config& config) {
 	delta_time = config.Get<float>(pbf::DELTA_TIME);
+	float world_size_x = config.Get<float>(pbf::WORLD_SIZE_X);
+	float world_size_y = config.Get<float>(pbf::WORLD_SIZE_Y);
+	float world_size_z = config.Get<float>(pbf::WORLD_SIZE_Z);
+    world_size_dim = { world_size_x, world_size_y, world_size_z };
 
 	ConfigureCamera(config);
     ConfigureBoundaryConstraint(config);
@@ -314,6 +317,25 @@ void InitDependencies() {
 
 	render.SetCamera(&camera);
 	render.SetParticleSystem(&ps);
+    render.boundary_constraint_ = &boundary_constraint;
+    for (size_t i = 0; i < boundary_constraint.NumBoundaries(); ++i) {
+        pbf::SceneRenderer::BoundaryRecord brec;
+        brec.index = i;
+        if (i == 0 || i == 1) {
+            brec.v1_len = world_size_dim.z;
+            brec.v2_len = world_size_dim.y;
+        }
+        else if (i == 2 || i == 3) {
+            brec.v1_len = world_size_dim.x;
+            brec.v2_len = world_size_dim.y;
+        }
+        else {
+            brec.v1_len = world_size_dim.z;
+            brec.v2_len = world_size_dim.x;
+
+        }
+        render.boundary_records_.push_back(brec);
+    }
 }
 
 ////////////////////////////////////////////////////

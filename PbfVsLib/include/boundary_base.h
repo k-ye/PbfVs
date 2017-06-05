@@ -21,6 +21,8 @@ namespace pbf {
 		BoundaryConstraintBase() = default;
 		virtual ~BoundaryConstraintBase() = default;
 
+        inline size_t NumBoundaries() const { return boundaries_.size(); }
+
 		void ApplyBoundaryConstraint();
 
 		void Add(const BoundaryPlane& bp);

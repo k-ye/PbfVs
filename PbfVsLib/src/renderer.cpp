@@ -92,36 +92,45 @@ namespace {
     }
     
     void SceneRenderer::InitScene() {
-        // Set up world cube vertex data
-        world_cube_vertices_ = {
-			// position          color
-            0.0f, 0.0f, 0.0f, 1.0f, 0.5f, 0.2f,                  // 0, left, bottom, far
-            world_sz_x_, 0.0f, 0.0f, 1.0f, 0.5f, 0.2f,             // 1, right, bottom, far
-            world_sz_x_, 0.0f, world_sz_z_, 1.0f, 0.5f, 0.2f,        // 2, right, bottom, near
-            0.0f, 0.0f, world_sz_z_, 1.0f, 0.5f, 0.2f,             // 3, left, bottom, near
-            0.0f, world_sz_y_, 0.0f, 1.0f, 0.5f, 0.2f,             // 4, left, top, far
-            world_sz_x_, world_sz_y_, 0.0f, 1.0f, 0.5f, 0.2f,        // 5, right, top, far
-            world_sz_x_, world_sz_y_, world_sz_z_, 1.0f, 0.5f, 0.2f,   // 6, right, top, near
-            0.0f, world_sz_y_, world_sz_z_, 1.0f, 0.5f, 0.2f,        // 7, left, top, near
+        // TODO: huge function, split
+
+        // set up boundaries
+        PrepareBoundaryBuffers_();
+
+        auto StoreBoundaryIndices = [this](size_t i) {
+            GLuint vertex_begin = i * 4;
+            size_t vidx_begin = i * 6;
+            boundary_indices_[vidx_begin + 0] = vertex_begin;
+            boundary_indices_[vidx_begin + 1] = vertex_begin + 2;
+            boundary_indices_[vidx_begin + 2] = vertex_begin + 1;
+            boundary_indices_[vidx_begin + 3] = vertex_begin;
+            boundary_indices_[vidx_begin + 4] = vertex_begin + 3;
+            boundary_indices_[vidx_begin + 5] = vertex_begin + 2;
         };
+
+        for (size_t i = 0; i < boundary_records_.size(); ++i) {
+            // UpdateBoundaryAt_(i);
+            StoreBoundaryIndices(i);
+        }
+
+        glGenVertexArrays(1, &boundaries_vao_);
+        glGenBuffers(1, &boundaries_vbo_);
+        glGenBuffers(1, &boundaries_ebo_);
         
-        world_cube_indices_ = {
-            0, 1, 2,
-            0, 2, 3,
-            0, 4, 5,
-            0, 5, 1,
-            0, 3, 7,
-            0, 7, 4
-        };
-        
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, boundaries_ebo_);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint) * boundary_indices_.size(),
+                     boundary_indices_.data(), GL_STATIC_DRAW);
+        SetVao_(boundaries_vao_, boundaries_vbo_, boundaries_ebo_);
+
+		// set up frame
 		frame_vertices_ = {
 			// position          color
 			-1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,  // 0, x from
-			-1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f,  // 1, y from
-			-1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,  // 2, z from
+			-1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,  // 1, y from
+			-1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 1.0f,  // 2, z from
 			+2.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,  // 3, x to
-			-1.0f, +2.0f, -1.0f, 0.0f, 0.0f, 1.0f,  // 4, y to
-			-1.0f, -1.0f, +2.0f, 0.0f, 1.0f, 0.0f,  // 5, z to
+			-1.0f, +2.0f, -1.0f, 0.0f, 1.0f, 0.0f,  // 4, y to
+			-1.0f, -1.0f, +2.0f, 0.0f, 0.0f, 1.0f,  // 5, z to
 		};
 		
 		frame_indices_ = {
@@ -129,24 +138,6 @@ namespace {
 			1, 4,
 			2, 5
 		};
-
-        // set up world scene
-        glGenVertexArrays(1, &world_vao_);
-        glGenBuffers(1, &world_vbo_);
-        glGenBuffers(1, &world_ebo_);
-        
-        glBindBuffer(GL_ARRAY_BUFFER, world_vbo_);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * world_cube_vertices_.size(),
-                     world_cube_vertices_.data(), GL_STATIC_DRAW);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, world_ebo_);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint) * world_cube_indices_.size(),
-                     world_cube_indices_.data(), GL_STATIC_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-        
-        SetVao_(world_vao_, world_vbo_, world_ebo_);
-		// set up frame
 		glGenVertexArrays(1, &frame_vao_);
 		glGenBuffers(1, &frame_vbo_);
 		glGenBuffers(1, &frame_ebo_);
@@ -181,6 +172,82 @@ namespace {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     }
     
+    void SceneRenderer::PrepareBoundaryBuffers_() {
+        const int num_boundaries = boundary_records_.size();
+        boundary_vertices_.resize(4 * 6 * num_boundaries, 0.0f);
+        boundary_indices_.resize(6 * num_boundaries, 0);
+    }
+
+    void SceneRenderer::UpdateBoundaryAt_(size_t i) {
+        // if (i == 1) return;
+
+        const auto& brec = boundary_records_[i];
+        const auto boundary = const_cast<const BoundaryConstraintBase*>(boundary_constraint_)->Get(i);
+        const vec_t b_anchor = boundary.position;
+        const vec_t b_normal = boundary.normal;
+        auto Transform = [=]() -> glm::mat4 {
+            const vec_t ref_normal{ 1.0f, 0.0f, 0.0f };
+            const auto ref_b_normal_dot = glm::dot(ref_normal, b_normal);
+            float rot_angle = 0.0f;
+            vec_t rot_axis{ 0.0f };
+            glm::mat4 result;
+            if (glm::abs(1.0f - ref_b_normal_dot) <= kFloatEpsilon) {
+                // ref_normal and b_normal is aligned
+                return result;
+            }
+            else if (glm::abs(-1.0f - ref_b_normal_dot) <= kFloatEpsilon) {
+                // ref_normal and b_normal points to the opposite direction
+                rot_angle = glm::acos(-1.0f);
+                // pick up +y dir that is perpendicular to |ref_normal|
+                rot_axis = vec_t{ 0.0f, 1.0f, 0.0f };
+            }
+            else {
+                rot_angle = glm::acos(dot(ref_normal, b_normal));
+                rot_axis = glm::normalize(glm::cross(ref_normal, b_normal));
+            }
+            result = glm::rotate(result, rot_angle, rot_axis);
+            return result;
+        };
+        auto tran_m = Transform();
+        // glm::vec4 to glm::vec3 discards the last component
+        vec_t dir1 = (tran_m * glm::vec4{ 0.0f, 0.0f, brec.v1_len, 0.0f });
+        vec_t dir2 = (tran_m * glm::vec4{ 0.0f, brec.v2_len, 0.0f, 0.0f });
+
+        point_t v0 = b_anchor;
+        point_t v1 = b_anchor + dir1;
+        point_t v2 = b_anchor + dir1 + dir2;
+        point_t v3 = b_anchor + dir2;
+        
+        size_t vertex_begin = i * 6 * 4;
+        boundary_vertices_[vertex_begin + 0] = v0.x;
+        boundary_vertices_[vertex_begin + 1] = v0.y;
+        boundary_vertices_[vertex_begin + 2] = v0.z;
+        boundary_vertices_[vertex_begin + 3] = 1.0f;
+        boundary_vertices_[vertex_begin + 4] = 0.5f;
+        boundary_vertices_[vertex_begin + 5] = 0.2f;
+        
+        boundary_vertices_[vertex_begin + 6] = v1.x;
+        boundary_vertices_[vertex_begin + 7] = v1.y;
+        boundary_vertices_[vertex_begin + 8] = v1.z;
+        boundary_vertices_[vertex_begin + 9] = 1.0f;
+        boundary_vertices_[vertex_begin + 10] = 0.5f;
+        boundary_vertices_[vertex_begin + 11] = 0.2f;
+        
+        boundary_vertices_[vertex_begin + 12] = v2.x;
+        boundary_vertices_[vertex_begin + 13] = v2.y;
+        boundary_vertices_[vertex_begin + 14] = v2.z;
+        boundary_vertices_[vertex_begin + 15] = 1.0f;
+        boundary_vertices_[vertex_begin + 16] = 0.5f;
+        boundary_vertices_[vertex_begin + 17] = 0.2f;
+        
+        boundary_vertices_[vertex_begin + 18] = v3.x;
+        boundary_vertices_[vertex_begin + 19] = v3.y;
+        boundary_vertices_[vertex_begin + 20] = v3.z;
+        boundary_vertices_[vertex_begin + 21] = 1.0f;
+        boundary_vertices_[vertex_begin + 22] = 0.5f;
+        boundary_vertices_[vertex_begin + 23] = 0.2f;
+    }
+    
     void SceneRenderer::Render() {
         // Render
         // Clear the colorbuffer
@@ -198,10 +265,18 @@ namespace {
         
         GLuint proj_loc = glGetUniformLocation(shader_program_, "proj");
         glUniformMatrix4fv(proj_loc, 1, GL_FALSE, glm::value_ptr(proj_));
-
-		// draw the world bounding box
-        glBindVertexArray(world_vao_);
-        glDrawElements(GL_TRIANGLES, (int)world_cube_indices_.size(), GL_UNSIGNED_INT, 0);
+        
+        // draw the boundaries
+        for (size_t i = 0; i < boundary_records_.size(); ++i) {
+            UpdateBoundaryAt_(i);
+        }
+        glBindBuffer(GL_ARRAY_BUFFER, boundaries_vbo_);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * boundary_vertices_.size(),
+                     boundary_vertices_.data(), GL_STREAM_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        
+        glBindVertexArray(boundaries_vao_);
+        glDrawElements(GL_TRIANGLES, (int)boundary_indices_.size(), GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
 		// draw the xyz frame
@@ -209,7 +284,7 @@ namespace {
 		glDrawElements(GL_LINES, (int)frame_indices_.size(), GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
 
-		// draw particles
+		// draw the particles
         // https://www.gamedev.net/topic/597387-vao-is-it-necessary-to-redo-setup-each-time-buffer-data-changes/ 
         for (size_t p_i = 0; p_i < ps_->NumParticles(); ++p_i) {
 			const auto pos = ps_->Get(p_i).position();
@@ -227,7 +302,7 @@ namespace {
         glBindVertexArray(particles_vao_);
         glDrawElements(GL_TRIANGLES, (int)particle_indices_.size(), GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
-        
+
         glUseProgram(0); 
     }
 } // namespace pbf
