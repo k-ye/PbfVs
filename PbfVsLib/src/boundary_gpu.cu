@@ -15,19 +15,32 @@ namespace impl_ {
 
         float3 pos = positions[ptc_i];
         float3 vel = velocities[ptc_i];
+        // This is actually not the distance because we keep the sign
         const float plane_to_ptc_dist = dot(pos - boundary_pos, boundary_normal);
         if (plane_to_ptc_dist < kFloatEpsilon) { 
-            // particle is out side the boundary
+            // particle is on the out side of the boundary plane
+            //
+            // this is the projected point of the particle on the boundary plane
             const float3 proj_pos = pos - (plane_to_ptc_dist * boundary_normal);
             pos = proj_pos;
 
             // make sure |boundary_vel| is large enough to make the computation stable.
-            const float3 proj_vel = dot(vel, boundary_vel) * boundary_vel / dot(boundary_vel, boundary_vel);
+            const float boundary_vel_dot = dot(boundary_vel, boundary_vel);
+            float3 proj_vel;
+            if (boundary_vel_dot <= kFloatEpsilon) {
+                // |boundary_vel| is almost zero, it is not stable to project particle's velocity
+                // along the boundary's. We project onto the boundary's normal instead.
+                proj_vel = dot(vel, boundary_normal) * boundary_normal;
+            }
+            else {
+                // computationally stable 
+                proj_vel = dot(vel, boundary_vel) * boundary_vel / boundary_vel_dot;
+            }
             // original particle velocity can be decompoosed into two components:
             // projected vel and perpendicular vel.
             const float3 proj_vel_diff = proj_vel - boundary_vel;
             if (dot(proj_vel_diff, boundary_normal) < kFloatEpsilon) {
-                // particle projected velocity should be the same as that of the boundary
+                // particle's projected velocity needs to be aligned with the boundary's
                 const float3 perp_vel = vel - proj_vel;
                 vel = boundary_vel + perp_vel;
             }

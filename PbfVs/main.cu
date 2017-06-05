@@ -1,6 +1,6 @@
 #include <iostream>
-#include <stdlib.h>     /* srand, rand */
-#include <time.h>       /* time */
+#include <stdlib.h>     // srand, rand
+#include <time.h>       // time
 #include <vector>
 #include <stdio.h>
 
