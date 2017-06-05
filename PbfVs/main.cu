@@ -25,9 +25,7 @@
 #include "include/renderer.h"
 #include "include/shader_wrapper.h"
 #include "include/shared_math.h"
-
-#include "include/aabb.h"
-#include "include/gravity.h"
+#include "include/boundary_gpu.h"
 #include "include/particle_system.h"
 #include "include/pbf_solver.h"
 #include "include/pbf_solver_gpu.h"
@@ -46,6 +44,8 @@ pbf::ArcballCamera camera;
 
 // Particle System instance
 pbf::ParticleSystem ps;
+
+pbf::BoundaryConstraintGpu boundary_constraint;
 
 // PBF Solver instance
 // pbf::PbfSolver solver;
@@ -154,6 +154,39 @@ void ConfigureCamera(const pbf::Config& config) {
 	max_arcball_radius = config.Get<float>(pbf::MAX_ARCBALL_RADIUS);
 }
 
+void ConfigureBoundaryConstraint(const pbf::Config& config) {
+    using pbf::vec_t;
+
+    const float world_size = config.Get<float>(pbf::WORLD_SIZE);
+    pbf::BoundaryPlane bp;
+    // X lo
+    bp.position = vec_t{ 0.0f, 0.0f, 0.0f };
+    bp.velocity = vec_t{ 0.0f };
+    bp.normal = vec_t{ 1.0f, 0.0f, 0.0f };
+    boundary_constraint.Add(bp);
+    // X hi
+    bp.position = vec_t{ world_size, 0.0f, 0.0f };
+    bp.velocity = vec_t{ 0.0f };
+    bp.normal = vec_t{ -1.0f, 0.0f, 0.0f };
+    boundary_constraint.Add(bp);
+    // Z lo
+    bp.position = vec_t{ 0.0f, 0.0f, 0.0f };
+    bp.velocity = vec_t{ 0.0f };
+    bp.normal = vec_t{ 0.0f, 0.0f, 1.0f };
+    boundary_constraint.Add(bp);
+    // Z hi
+    bp.position = vec_t{ 0.0f, 0.0f, world_size };
+    bp.velocity = vec_t{ 0.0f };
+    bp.normal = vec_t{ 0.0f, 0.0f, -1.0f };
+    boundary_constraint.Add(bp);
+    // Y lo
+    bp.position = vec_t{ 0.0f, 0.0f, 0.0f };
+    bp.velocity = vec_t{ 0.0f };
+    bp.normal = vec_t{ 0.0f, 1.0f, 0.0f };
+    boundary_constraint.Add(bp);
+    // No top cover
+}
+
 void ConfigureSolver(const pbf::Config& config) {
 	pbf::PbfSolverConfig solver_config;
 
@@ -191,9 +224,8 @@ void Configure(pbf::Config& config) {
 	delta_time = config.Get<float>(pbf::DELTA_TIME);
 
 	ConfigureCamera(config);
-
+    ConfigureBoundaryConstraint(config);
 	ConfigureSolver(config);
-
 	ConfigureRenderer(config);
 }
 
@@ -218,9 +250,9 @@ void InitParticles(const pbf::Config& config) {
 				float zf = margin + z * interval;
 				const glm::vec3 pos{ xf, yf, zf };
 
-				float vx = pbf::GenRandom<float>(-0.5f, 0.5f);
-				float vy = pbf::GenRandom<float>(0.0f, 1.0f);
-				float vz = pbf::GenRandom<float>(-0.5f, 0.5f);
+				float vx = pbf::GenRandom(-0.5f, 0.5f);
+				float vy = pbf::GenRandom(0.0f, 1.0f);
+				float vz = pbf::GenRandom(-0.5f, 0.5f);
 				const glm::vec3 vel{ vx, vy, vz };
 
 				ps.Add(pos, vel);
@@ -231,6 +263,7 @@ void InitParticles(const pbf::Config& config) {
 
 void InitDependencies() {
 	solver.InitParticleSystems(&ps);
+    solver.SetBoundaryConstraint(boundary_constraint);
 
 	render.SetCamera(&camera);
 	render.SetParticleSystem(&ps);

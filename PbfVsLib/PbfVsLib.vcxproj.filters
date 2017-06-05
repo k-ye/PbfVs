@@ -85,6 +85,12 @@
     <ClInclude Include="include\boundary_base.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\ps_gpu_adaptor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\boundary_gpu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\aabb.cpp">
@@ -138,6 +144,12 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="src\pbf_solver_gpu.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="src\ps_gpu_adaptor.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="src\boundary_gpu.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
   </ItemGroup>

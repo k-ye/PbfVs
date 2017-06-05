@@ -35,17 +35,17 @@ namespace {
 	// Cell size of the test world.
 	const float kCellSize = 1.0f;
 	const float kHalfCellSize = kCellSize / 2;
-	const unsigned kNumCellsPerDim = 15u;
+	const int kNumCellsPerDim = 15;
 	const float kWorldSize = kCellSize * kNumCellsPerDim;
-	const unsigned kAabbOffsetByCell = 3u;
-	const unsigned kNumIters = 100u;
+	const int kAabbOffsetByCell = 3;
+	const int kNumIters = 100;
 	// Cell size of the data structure being tested.
 	const float kTestDsCellSize = 1.5f;
 
 	point_t GenRandomPoint() {
-		int x = GenRandom<int>(0, kNumCellsPerDim);
-		int y = GenRandom<int>(0, kNumCellsPerDim);	
-		int z = GenRandom<int>(0, kNumCellsPerDim);
+		int x = GenRandom(0, kNumCellsPerDim);
+		int y = GenRandom(0, kNumCellsPerDim);	
+		int z = GenRandom(0, kNumCellsPerDim);
 		
 		point_t result;
 		result.x = x * kCellSize + kHalfCellSize;
@@ -224,9 +224,9 @@ namespace {
 		std::unordered_set<size_t> neighbor_ptcs_ref_;
 		
 		float3 GenRandomPos() const {
-			float x = GenRandom<float>(0.1f, this->kWorldSize - 0.1f);
-			float y = GenRandom<float>(0.1f, this->kWorldSize - 0.1f);
-			float z = GenRandom<float>(0.1f, this->kWorldSize - 0.1f);
+			float x = GenRandom(0.1f, this->kWorldSize - 0.1f);
+			float y = GenRandom(0.1f, this->kWorldSize - 0.1f);
+			float z = GenRandom(0.1f, this->kWorldSize - 0.1f);
 			return make_float3(x, y, z);
 		};
 

@@ -3,9 +3,12 @@
 
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
+#include <memory>
 
 #include "aabb.h"
 #include "pbf_solver_base.h"
+#include "ps_gpu_adaptor.h"
+#include "boundary_gpu.h"
 
 namespace pbf {
 	template <typename T>
@@ -67,6 +70,7 @@ namespace pbf {
 		
 		void Update(float dt) override;
 
+        void SetBoundaryConstraint(const BoundaryConstraintGpu& bc);
 	private:
 		// overrides		
 		void CustomConfigure_(const PbfSolverConfig& config) override;
@@ -102,18 +106,20 @@ namespace pbf {
 		
 		void UpdatePs_();
 
-		inline float3* PositionsPtr_() { return thrust::raw_pointer_cast(d_positions_.data()); }
-		inline const float3* PositionsPtr_() const { return thrust::raw_pointer_cast(d_positions_.data()); }
+		inline float3* PositionsPtr_() { 
+            return thrust::raw_pointer_cast(ps_adaptor_->PositionsVec()->data()); 
+        }
 		
-		inline float3* VelocitiesPtr_() { return thrust::raw_pointer_cast(d_velocities_.data()); }
-		inline const float3* VelocitiesPtr_() const { return thrust::raw_pointer_cast(d_velocities_.data()); }
+		inline float3* VelocitiesPtr_() { 
+            return thrust::raw_pointer_cast(ps_adaptor_->VelocitiesVec()->data()); 
+        }
 	
 	private:
 		float cell_grid_size_;
 		int num_ptcs_;
 
-		d_vector<float3> d_positions_;
-		d_vector<float3> d_velocities_;
+        std::shared_ptr<ParticleSystemGpuAdaptor> ps_adaptor_;
+        BoundaryConstraintGpu boundary_constraint_;
 		
 		// particle records 
 		GpuParticleNeighbors ptc_nb_recs_;

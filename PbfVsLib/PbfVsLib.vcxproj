@@ -22,6 +22,7 @@
     <ClInclude Include="include\aabb.h" />
     <ClInclude Include="include\arcball_camera.h" />
     <ClInclude Include="include\boundary_base.h" />
+    <ClInclude Include="include\boundary_gpu.h" />
     <ClInclude Include="include\config.h" />
     <ClInclude Include="include\constants.h" />
     <ClInclude Include="include\cuda_basic.h" />
@@ -37,6 +38,7 @@
     <ClInclude Include="include\pbf_solver_base.h" />
     <ClInclude Include="include\pbf_solver_gpu.h" />
     <ClInclude Include="include\point_drawer.h" />
+    <ClInclude Include="include\ps_gpu_adaptor.h" />
     <ClInclude Include="include\renderer.h" />
     <ClInclude Include="include\shader_wrapper.h" />
     <ClInclude Include="include\shared_math.h" />
@@ -65,7 +67,9 @@
     <ClCompile Include="src\utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="src\boundary_gpu.cu" />
     <CudaCompile Include="src\pbf_solver_gpu.cu" />
+    <CudaCompile Include="src\ps_gpu_adaptor.cu" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A0FAD442-3DDF-4C02-BDE6-C47D8D4FF0DB}</ProjectGuid>

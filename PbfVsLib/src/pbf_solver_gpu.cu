@@ -1,6 +1,7 @@
 #include "../include/pbf_solver_gpu.h"
-
 #include "../include/kernel.cuh"
+
+#include <cassert>
 
 // CUDA
 #include "../include/cuda_basic.h"
@@ -12,8 +13,6 @@
 #include <thrust/reduce.h>
 
 namespace pbf {
-	constexpr int kNumThreadPerBlock = 512;	
-
 namespace impl_ {
 	// ParticleSystemGpu
 	//
@@ -582,39 +581,6 @@ namespace impl_ {
 	}
 #undef GRAVITY_Y
 
-	__global__ static void ImposeBoundaryConstraintKernel(const int num_ptcs, const float world_size,
-		const float board_x, const float board_vel_x,
-		float3* positions, float3* velocities)
-	{
-		const int ptc_i = (blockDim.x * blockIdx.x) + threadIdx.x;
-		if (ptc_i >= num_ptcs) return;
-
-		float3 pos_i = positions[ptc_i];
-		float3 vel_i = velocities[ptc_i];
-#define IMPOSE_ON_DIM(D) \
-	if (pos_i.##D <= 0.0f || pos_i.##D >= world_size) { \
-		vel_i.##D = 0.0f; \
-		pos_i.##D = max(0.0f, min(world_size, pos_i.##D)); \
-	}
-		// IMPOSE_ON_DIM(x);
-		IMPOSE_ON_DIM(y);
-		IMPOSE_ON_DIM(z);
-#undef IMPOSE_ON_DIM
-		if (pos_i.x <= 0.0f) {
-			vel_i.x = 0.0f;
-			pos_i.x = 0.0f;
-		}
-		else if (pos_i.x >= board_x) {
-			float vel_x_rel = vel_i.x - board_vel_x;
-			if (vel_x_rel > 0.0f) {
-				vel_i.x = board_vel_x;
-			}
-			pos_i.x = board_x;
-		}
-		positions[ptc_i] = pos_i;
-		velocities[ptc_i] = vel_i;
-	}
-
 	__global__ static void ComputeLambdaKernel(const float3* positions, const int* ptc_num_neighbors,
 		const int* ptc_neighbor_begins, const int* ptc_neighbor_indices, const int num_ptcs,
 		const float h, const float mass, const float rho_0_recpr, const float epsilon, float* lambdas) 
@@ -812,13 +778,15 @@ namespace impl_ {
 		// device memory back to each particle. This is because
 		// PbfSolverGpu is the only one who modifies the particles'
 		// data (position/velocity).
-		d_positions_.reserve(num_ptcs_);
-		d_velocities_.reserve(num_ptcs_);
-		for (size_t p_i = 0; p_i < num_ptcs_; ++p_i) {
-			auto ptc_i = ps_->Get(p_i);
-			d_positions_.push_back(Convert(ptc_i.position()));
-			d_velocities_.push_back(Convert(ptc_i.velocity()));
-		}
+        ps_adaptor_ = std::make_shared<ParticleSystemGpuAdaptor>();
+        ps_adaptor_->SetPs(ps_);
+		// d_positions_.reserve(num_ptcs_);
+		// d_velocities_.reserve(num_ptcs_);
+		// for (size_t p_i = 0; p_i < num_ptcs_; ++p_i) {
+		// 	auto ptc_i = ps_->Get(p_i);
+		// 	d_positions_.push_back(Convert(ptc_i.position()));
+		// 	d_velocities_.push_back(Convert(ptc_i.velocity()));
+		// }
 		
 		// init particle records
 		const float3 zeros = make_float3(0.0f);
@@ -829,9 +797,14 @@ namespace impl_ {
 		vorticity_corr_forces_.resize(num_ptcs_, zeros);
 		xsphs_.resize(num_ptcs_, zeros);
 	}
-	
-	void PbfSolverGpu::Update(float dt) {
 
+    void PbfSolverGpu::SetBoundaryConstraint(const BoundaryConstraintGpu& bc) {
+        boundary_constraint_ = bc;
+        assert(ps_adaptor_ != nullptr);
+        boundary_constraint_.SetPsAdaptor(ps_adaptor_);
+    }
+
+	void PbfSolverGpu::Update(float dt) {
 		board_x_ += board_x_vel_ * dt;
 		bool change_board_x_vel_dir = false;
 		if (board_x_ < world_size_ * 0.5f) {
@@ -884,7 +857,8 @@ namespace impl_ {
 	}
 	
 	void PbfSolverGpu::RecordOldPositions_() {
-		thrust::copy(thrust::device, d_positions_.begin(), d_positions_.end(), old_positions_.begin());
+        auto* d_positions = ps_adaptor_->PositionsVec();
+		thrust::copy(thrust::device, d_positions->begin(), d_positions->end(), old_positions_.begin());
 	}
 		
 	void PbfSolverGpu::ApplyGravity_(const float dt) {
@@ -896,20 +870,17 @@ namespace impl_ {
 	}
 
 	void PbfSolverGpu::ImposeBoundaryConstraint_() {
-		const int num_blocks_ptc = impl_::ComputeNumBlocks(num_ptcs_);
-		ImposeBoundaryConstraintKernel<<<num_blocks_ptc, kNumThreadPerBlock>>>(
-			num_ptcs_, world_size_, board_x_, board_x_vel_, PositionsPtr_(), VelocitiesPtr_());
-		cudaDeviceSynchronize();
-		checkCudaErrors(cudaGetLastError());
+        boundary_constraint_.ApplyBoundaryConstraint();
 	}
 	
 	void PbfSolverGpu::FindNeighbors_() {
 		const float3 world_sz_dim = make_float3(world_size_);
 		
 		CellGridGpu cell_grid{ world_sz_dim, cell_grid_size_ };
-		UpdateCellGrid(d_positions_, &cell_grid);
+        auto& d_positions = *(ps_adaptor_->PositionsVec());
+		UpdateCellGrid(d_positions, &cell_grid);
 			
-		FindParticleNeighbors(d_positions_, cell_grid, h_, &ptc_nb_recs_);
+		FindParticleNeighbors(d_positions, cell_grid, h_, &ptc_nb_recs_);
 	}
 
 	void PbfSolverGpu::ComputeLambdas_() {
@@ -996,15 +967,16 @@ namespace impl_ {
 	}
 	
 	void PbfSolverGpu::UpdatePs_() {
-		using thrust::host_vector;
-		host_vector<float3> h_positions{ d_positions_ };
-		host_vector<float3> h_velocities{ d_velocities_ };
+        ps_adaptor_->UpdatePs();
+		// using thrust::host_vector;
+		// host_vector<float3> h_positions{ d_positions_ };
+		// host_vector<float3> h_velocities{ d_velocities_ };
 
-		for (size_t p_i = 0; p_i < num_ptcs_; ++p_i) {
-			auto ptc_i = ps_->Get(p_i);
-			ptc_i.set_position(Convert(h_positions[p_i]));
-			ptc_i.set_velocity(Convert(h_velocities[p_i]));
-		}
+		// for (size_t p_i = 0; p_i < num_ptcs_; ++p_i) {
+		// 	auto ptc_i = ps_->Get(p_i);
+		// 	ptc_i.set_position(Convert(h_positions[p_i]));
+		// 	ptc_i.set_velocity(Convert(h_velocities[p_i]));
+		// }
 
 	}
 } // namespace pbf

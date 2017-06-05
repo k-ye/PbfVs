@@ -7,11 +7,13 @@
 
 namespace pbf {
 	struct BoundaryPlane {
-		BoundaryPlane(const vec_t& n);
+        BoundaryPlane(const vec_t& n = vec_t{ 0.0f });
+        BoundaryPlane(const BoundaryPlane&) = default;
+        BoundaryPlane& operator=(const BoundaryPlane&) = default;
 
-		vec_t position;
-		vec_t velocity;
-		const vec_t normal;
+        vec_t position{ 0.0f };
+        vec_t velocity{ 0.0f };
+        vec_t normal;
 	};
 
 	class BoundaryConstraintBase {
@@ -21,8 +23,10 @@ namespace pbf {
 
 		void ApplyBoundaryConstraint();
 
-		void AddBoundary(const BoundaryPlane& bp);
+		void Add(const BoundaryPlane& bp);
 
+		const BoundaryPlane& Get(size_t i) const;
+	
 	protected:
 		virtual void ApplyAtBoundary_(const BoundaryPlane& bp) = 0;
 
