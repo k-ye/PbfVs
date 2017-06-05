@@ -798,10 +798,10 @@ namespace impl_ {
 		xsphs_.resize(num_ptcs_, zeros);
 	}
 
-    void PbfSolverGpu::SetBoundaryConstraint(const BoundaryConstraintGpu& bc) {
+    void PbfSolverGpu::SetBoundaryConstraint(BoundaryConstraintGpu* bc) {
         boundary_constraint_ = bc;
         assert(ps_adaptor_ != nullptr);
-        boundary_constraint_.SetPsAdaptor(ps_adaptor_);
+        boundary_constraint_->SetPsAdaptor(ps_adaptor_);
     }
 
 	void PbfSolverGpu::Update(float dt) {
@@ -870,7 +870,7 @@ namespace impl_ {
 	}
 
 	void PbfSolverGpu::ImposeBoundaryConstraint_() {
-        boundary_constraint_.ApplyBoundaryConstraint();
+        boundary_constraint_->ApplyBoundaryConstraint();
 	}
 	
 	void PbfSolverGpu::FindNeighbors_() {

@@ -19,4 +19,8 @@ namespace pbf {
 	const BoundaryPlane& BoundaryConstraintBase::Get(size_t i) const {
 		return boundaries_[i];
 	}
+    
+    BoundaryPlane* BoundaryConstraintBase::Get(size_t i) { 
+        return &boundaries_[i]; 
+    }
 } // namespace pbf

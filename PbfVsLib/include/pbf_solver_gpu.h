@@ -70,7 +70,7 @@ namespace pbf {
 		
 		void Update(float dt) override;
 
-        void SetBoundaryConstraint(const BoundaryConstraintGpu& bc);
+        void SetBoundaryConstraint(BoundaryConstraintGpu* bc);
 	private:
 		// overrides		
 		void CustomConfigure_(const PbfSolverConfig& config) override;
@@ -119,7 +119,7 @@ namespace pbf {
 		int num_ptcs_;
 
         std::shared_ptr<ParticleSystemGpuAdaptor> ps_adaptor_;
-        BoundaryConstraintGpu boundary_constraint_;
+        BoundaryConstraintGpu* boundary_constraint_;
 		
 		// particle records 
 		GpuParticleNeighbors ptc_nb_recs_;

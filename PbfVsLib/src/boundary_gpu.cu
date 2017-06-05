@@ -21,8 +21,6 @@ namespace impl_ {
             const float3 proj_pos = pos - (plane_to_ptc_dist * boundary_normal);
             pos = proj_pos;
 
-            // const float3 norm_boundary_vel = normalize(boundary_vel);
-            // const float3 proj_vel = dot(vel, norm_boundary_vel) * norm_boundary_vel;
             // make sure |boundary_vel| is large enough to make the computation stable.
             const float3 proj_vel = dot(vel, boundary_vel) * boundary_vel / dot(boundary_vel, boundary_vel);
             // original particle velocity can be decompoosed into two components:

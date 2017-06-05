@@ -26,6 +26,7 @@ namespace pbf {
 		void Add(const BoundaryPlane& bp);
 
 		const BoundaryPlane& Get(size_t i) const;
+        BoundaryPlane* Get(size_t i);
 	
 	protected:
 		virtual void ApplyAtBoundary_(const BoundaryPlane& bp) = 0;

@@ -76,6 +76,40 @@ float max_arcball_radius = 100.0f;
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 ////////////////////////////////////////////////////
+
+// A class that moves the x hi boundary back and forth
+class MoveXBoundaryDriver {
+public:
+    MoveXBoundaryDriver(pbf::BoundaryConstraintBase* bc) : bc_(bc) {}
+
+    void Configure(const pbf::Config& config) {
+        x_hi_index_ = 1;
+        x_vel_ = 5.0f;
+        const float world_size = config.Get<float>(pbf::WORLD_SIZE);
+        x_lo_ = world_size * 0.5f;
+        x_hi_ = world_size - 0.5f;
+    }
+
+    void Update(float dt) {
+        auto* bp = bc_->Get(x_hi_index_);
+        bp->position.x += (bp->velocity.x * dt);
+        if (bp->position.x < x_lo_) {
+            bp->position.x = x_lo_ + kFloatEpsilon;
+            bp->velocity.x = x_vel_;
+        }
+        else if (bp->position.x > x_hi_) {
+            bp->position.x = x_hi_ - kFloatEpsilon;
+            bp->velocity.x = -x_vel_;
+        }
+    }
+private:
+    pbf::BoundaryConstraintBase* bc_;
+    float x_vel_;
+    float x_lo_;
+    float x_hi_;
+    size_t x_hi_index_;
+};
+////////////////////////////////////////////////////
 // The MAIN function, from here we start the application and run the game loop
 int main() {
 	std::cout << "Starting GLFW context, OpenGL 3.3" << std::endl;
@@ -100,7 +134,10 @@ int main() {
 	InitParticles(config);
 
 	InitDependencies();
-
+    
+    MoveXBoundaryDriver boundary_driver{ &boundary_constraint };
+    boundary_driver.Configure(config);
+    
 	// Set the required callback functions
 	glfwSetKeyCallback(window, KeyCallback);
 	glfwSetCursorPosCallback(window, MouseCallback);
@@ -126,6 +163,7 @@ int main() {
 		glfwPollEvents();
 
 		if (!is_paused) {
+            boundary_driver.Update(delta_time);
 			solver.Update(delta_time);
 		}
 		render.Render();
@@ -263,7 +301,7 @@ void InitParticles(const pbf::Config& config) {
 
 void InitDependencies() {
 	solver.InitParticleSystems(&ps);
-    solver.SetBoundaryConstraint(boundary_constraint);
+    solver.SetBoundaryConstraint(&boundary_constraint);
 
 	render.SetCamera(&camera);
 	render.SetParticleSystem(&ps);
