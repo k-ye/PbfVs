@@ -13,9 +13,14 @@
 - [ ] Enhancement
 - [ ] Optional build on GPU impl
 
+## Some Images
+
 Wave simulation using ~15,000 particles on NVIDIA GeForce GTX 960M.
 
-<img src="screenshots/wave.gif">
+![](screenshots/wave.gif)
+
+OpenGL coordinate system reference
+![](screenshots/gl_frame.png)
 
 ## TODO
 
