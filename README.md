@@ -20,6 +20,7 @@ Wave simulation using ~15,000 particles on NVIDIA GeForce GTX 960M.
 ![](screenshots/wave.gif)
 
 OpenGL coordinate system reference
+
 ![](screenshots/gl_frame.png)
 
 ## TODO
