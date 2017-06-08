@@ -1,12 +1,5 @@
-//
-//  shader_wrapper.cpp
-//  PBF
-//
-//  Created by Ye Kuang on 3/27/17.
-//  Copyright © 2017 Ye Kuang. All rights reserved.
-//
-
 #include "../include/shader_wrapper.h"
+#include "../include/utils.h"
 
 #include <iostream>
 

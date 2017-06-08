@@ -1,15 +1,6 @@
-//
-//  shader_wrapper.h
-//  PBF
-//
-//  Created by Ye Kuang on 3/27/17.
-//  Copyright © 2017 Ye Kuang. All rights reserved.
-//
-
 #ifndef shader_wrapper_h
 #define shader_wrapper_h
 
-#include "utils.h"
 #include "gl_utils.h"
 
 #include <string>

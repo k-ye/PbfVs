@@ -1,12 +1,12 @@
 #ifndef renderer_h
 #define renderer_h
 
-#include <GL/glew.h>
 #include <vector>
 
 #include "glm_headers.h"
 #include "boundary_base.h"
 #include "particle_system.h"
+#include "shader_program.h"
 
 namespace pbf {
     class ArcballCamera;
@@ -47,7 +47,8 @@ namespace pbf {
         glm::mat4 model_;
         glm::mat4 proj_;
         
-        GLuint shader_program_;
+        // GLuint shader_program_;
+        ShaderProgram shader_program_;
 
         // *world* is a cube that defines the boundary of the PBF.
         GLfloat world_sz_x_;

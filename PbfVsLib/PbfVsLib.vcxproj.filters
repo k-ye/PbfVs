@@ -91,6 +91,9 @@
     <ClInclude Include="include\boundary_gpu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\shader_program.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\aabb.cpp">
@@ -139,6 +142,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\shared_math.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\shader_program.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

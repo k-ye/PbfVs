@@ -59,18 +59,13 @@ namespace {
     }
     
     void SceneRenderer::InitShaders(const char* vert_path, const char* frag_path) {
-        using namespace pbf;
-        // Create shaders
-        // Shaders only need to be created once. Once they are
-        // attached to a shader program, they can be deleted safely.
-        GLShaderWrapper vert_shader(GL_VERTEX_SHADER, vert_path);
-        GLShaderWrapper frag_shader(GL_FRAGMENT_SHADER, frag_path);
-        
-        // Link shaders
-        shader_program_ = glCreateProgram();
-        glAttachShader(shader_program_, vert_shader.Get());
-        glAttachShader(shader_program_, frag_shader.Get());
-        glLinkProgram(shader_program_);
+        // using namespace pbf;
+        shader_program_.Init(vert_path, frag_path);
+        // // Link shaders
+        // shader_program_ = glCreateProgram();
+        // glAttachShader(shader_program_, vert_shader.Get());
+        // glAttachShader(shader_program_, frag_shader.Get());
+        // glLinkProgram(shader_program_);
     }
     
     void SceneRenderer::SetVao_(GLuint vao, GLuint vbo, GLuint ebo) const {
@@ -254,16 +249,16 @@ namespace {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         
-        glUseProgram(shader_program_);
+        shader_program_.Use();
         
-        GLuint model_loc = glGetUniformLocation(shader_program_, "model");
+        GLuint model_loc = glGetUniformLocation(shader_program_.Get(), "model");
         glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(model_));
         
         glm::mat4 view = camera_->GetViewMatrix();
-        GLuint view_loc = glGetUniformLocation(shader_program_, "view");
+        GLuint view_loc = glGetUniformLocation(shader_program_.Get(), "view");
         glUniformMatrix4fv(view_loc, 1, GL_FALSE, glm::value_ptr(view));
         
-        GLuint proj_loc = glGetUniformLocation(shader_program_, "proj");
+        GLuint proj_loc = glGetUniformLocation(shader_program_.Get(), "proj");
         glUniformMatrix4fv(proj_loc, 1, GL_FALSE, glm::value_ptr(proj_));
         
         // draw the boundaries
@@ -303,6 +298,6 @@ namespace {
         glDrawElements(GL_TRIANGLES, (int)particle_indices_.size(), GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
-        glUseProgram(0); 
+        shader_program_.Unbind();
     }
 } // namespace pbf

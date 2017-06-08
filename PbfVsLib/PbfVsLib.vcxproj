@@ -40,6 +40,7 @@
     <ClInclude Include="include\point_drawer.h" />
     <ClInclude Include="include\ps_gpu_adaptor.h" />
     <ClInclude Include="include\renderer.h" />
+    <ClInclude Include="include\shader_program.h" />
     <ClInclude Include="include\shader_wrapper.h" />
     <ClInclude Include="include\shared_math.h" />
     <ClInclude Include="include\sh_position_getter.h" />
@@ -61,6 +62,7 @@
     <ClCompile Include="src\pbf_solver_base.cpp" />
     <ClCompile Include="src\point_drawer.cpp" />
     <ClCompile Include="src\renderer.cpp" />
+    <ClCompile Include="src\shader_program.cpp" />
     <ClCompile Include="src\shader_wrapper.cpp" />
     <ClCompile Include="src\shared_math.cpp" />
     <ClCompile Include="src\typedefs.cpp" />
