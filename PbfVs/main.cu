@@ -84,7 +84,7 @@ public:
 
     void Configure(const pbf::Config& config) {
         x_hi_index_ = 1;
-        x_vel_ = 6.0f;
+        x_vel_ = 8.0f;
         const float world_size_x = config.Get<float>(pbf::WORLD_SIZE_X);
         x_lo_ = world_size_x * 0.6f;
         x_hi_ = world_size_x - 0.5f;

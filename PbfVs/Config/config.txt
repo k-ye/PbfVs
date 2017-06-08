@@ -15,7 +15,7 @@ vorticity_epsilon=1.0f;
 xsph_c=0.001f;
 
 projection_far=1000.0f
-init_arcball_radius=60.0f
+init_arcball_radius=72.0f
 max_arcball_radius=200.0f
 
 # GPU params

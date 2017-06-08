@@ -101,11 +101,11 @@ namespace {
             GLuint vertex_begin = i * 4;
             size_t vidx_begin = i * 6;
             boundary_indices_[vidx_begin + 0] = vertex_begin;
-            boundary_indices_[vidx_begin + 1] = vertex_begin + 2;
-            boundary_indices_[vidx_begin + 2] = vertex_begin + 1;
+            boundary_indices_[vidx_begin + 1] = vertex_begin + 1;
+            boundary_indices_[vidx_begin + 2] = vertex_begin + 2;
             boundary_indices_[vidx_begin + 3] = vertex_begin;
-            boundary_indices_[vidx_begin + 4] = vertex_begin + 3;
-            boundary_indices_[vidx_begin + 5] = vertex_begin + 2;
+            boundary_indices_[vidx_begin + 4] = vertex_begin + 2;
+            boundary_indices_[vidx_begin + 5] = vertex_begin + 3;
         };
 
         for (size_t i = 0; i < boundary_records_.size(); ++i) {
