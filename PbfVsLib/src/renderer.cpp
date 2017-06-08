@@ -57,15 +57,10 @@ namespace {
 		float near, float far) {
         proj_ = glm::perspective(fov, wh_aspect, near, far);
     }
-    
+
     void SceneRenderer::InitShaders(const char* vert_path, const char* frag_path) {
         // using namespace pbf;
         shader_program_.Init(vert_path, frag_path);
-        // // Link shaders
-        // shader_program_ = glCreateProgram();
-        // glAttachShader(shader_program_, vert_shader.Get());
-        // glAttachShader(shader_program_, frag_shader.Get());
-        // glLinkProgram(shader_program_);
     }
     
     void SceneRenderer::SetVao_(GLuint vao, GLuint vbo, GLuint ebo) const {

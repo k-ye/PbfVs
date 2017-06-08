@@ -26,6 +26,8 @@ namespace pbf {
        
         void SetPespectiveProjection(float fov, float wh_aspect, float near, float far);
         
+        // TOOD: we might need to have multiple shader programs in the future, so 
+        // this function signature should be deprecated
         void InitShaders(const char* vert_path, const char* frag_path);
         
         void InitScene();
