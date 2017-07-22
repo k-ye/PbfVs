@@ -12,14 +12,22 @@ namespace pbf {
         glAttachShader(shader_program_, vert_shader.Get());
         glAttachShader(shader_program_, frag_shader.Get());
         glLinkProgram(shader_program_);
+
+        CHECK_PROGRAM_LINK_STATUS(shader_program_);
     }
 
     void ShaderProgram::Use() const {
         glUseProgram(shader_program_);
     }
-    
+
     void ShaderProgram::Unbind() const {
         glUseProgram(0);
     }
 
+    GLuint ShaderProgram::GetUniformLoc(const char* name) const {
+        return glGetUniformLocation(Get(), name);
+    }
+
+    WithShaderProgram::WithShaderProgram(const ShaderProgram& p) : p_(p) { p_.Use(); }
+    WithShaderProgram::~WithShaderProgram() { p_.Unbind(); }
 } // namespace pbf

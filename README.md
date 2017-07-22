@@ -5,28 +5,23 @@
 
 - Implement both the CPU and GPU version of the Position Based Fluid
 
-## Progress
+## Current Progress
 
 - [x] CPU impl
 - [x] GPU impl
-- [ ] Fluid Rendering
+- [ ] Fluid Rendering (not particle rendering)
 - [ ] Refactor
-- [ ] Enhancement
 - [ ] Optional build on GPU impl
 
 ## Some Images
 
-Wave simulation using ~15,000 particles on NVIDIA GeForce GTX 960M.
+Wave simulation using ~18,000 particles on NVIDIA GeForce GTX 960M.
 
 ![](screenshots/wave.gif)
 
 OpenGL coordinate system reference
 
 ![](screenshots/gl_frame.png)
-
-## TODO
-
-See [Issues](https://github.com/k-ye/PbfVs/issues)
 
 ## Dependency
 

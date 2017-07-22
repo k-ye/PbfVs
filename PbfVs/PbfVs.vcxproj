@@ -173,6 +173,12 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <Text Include="Config\config.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\fragment.frag" />
+    <None Include="Shaders\sprite_fragment.frag" />
+    <None Include="Shaders\sprite_vertex.vert" />
+    <None Include="Shaders\vertex.vert" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 8.0.targets" />

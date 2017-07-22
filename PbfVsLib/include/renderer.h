@@ -1,3 +1,5 @@
+// renderer.h
+
 #ifndef renderer_h
 #define renderer_h
 
@@ -11,46 +13,49 @@
 namespace pbf {
     class ArcballCamera;
     class ParticleSystem;
-    
+
     class SceneRenderer {
     public:
         SceneRenderer() = default;
         SceneRenderer(const SceneRenderer&) = delete;
         SceneRenderer& operator=(const SceneRenderer&) = delete;
-        
+
         void SetWorldSize(const vec_t& s);
-        
+
         void SetCamera(pbf::ArcballCamera* camera);
-        
+
         void SetParticleSystem(pbf::ParticleSystem* ps);
-       
+
         void SetPespectiveProjection(float fov, float wh_aspect, float near, float far);
-        
+
         // TOOD: we might need to have multiple shader programs in the future, so 
         // this function signature should be deprecated
         void InitShaders(const char* vert_path, const char* frag_path);
         
+        void InitSpriteShaders(const char* vert_path, const char* frag_path);
+
         void InitScene();
-        
+
         void Render();
-        
+
         void SetVao_(GLuint vao, GLuint vbo, GLuint ebo) const;
-        
+
         void PrepareBoundaryBuffers_();
 
         void UpdateBoundaryAt_(size_t i);
-        
+
     private:
-        
+
         pbf::ArcballCamera* camera_;
         pbf::ParticleSystem* ps_;
-        
+
         // OpenGL transformation matrices
         glm::mat4 model_;
         glm::mat4 proj_;
-        
-        // GLuint shader_program_;
+
+        // default shaders
         ShaderProgram shader_program_;
+        ShaderProgram sprite_shader_program_;
 
         // *world* is a cube that defines the boundary of the PBF.
         GLfloat world_sz_x_;
@@ -60,24 +65,30 @@ namespace pbf {
         GLuint boundaries_vao_;
         GLuint boundaries_vbo_;
         GLuint boundaries_ebo_;
-        
+
         std::vector<GLfloat> boundary_vertices_;
         std::vector<GLuint> boundary_indices_;
-        
+
         // xyz frame (coordinate) 
-		GLuint frame_vao_;
+        GLuint frame_vao_;
         GLuint frame_vbo_;
         GLuint frame_ebo_;
-        
+
         std::vector<GLfloat> frame_vertices_;
         std::vector<GLuint> frame_indices_;
         // particles
         GLuint particles_vao_;
         GLuint particles_vbo_;
         GLuint particles_ebo_;
-        
+
         std::vector<GLfloat> particle_vertices_;
         std::vector<GLuint> particle_indices_;
+
+        ////////////////////////////////////////////////////
+        // fluid rendering
+        GLuint fluid_fbo_;
+        GLuint fluid_texture_;
+        GLuint fluid_rbo_;
 
     public:
         // public for quick implementation

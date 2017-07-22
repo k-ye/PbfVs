@@ -7,6 +7,9 @@
     <Filter Include="Config">
       <UniqueIdentifier>{1c3538c3-93e1-42c2-b8a0-7d5d9833bb67}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{756c156f-287c-4aeb-ae2f-23c6e1874080}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="main.cu">
@@ -17,5 +20,19 @@
     <Text Include="Config\config.txt">
       <Filter>Config</Filter>
     </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\fragment.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\sprite_fragment.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\sprite_vertex.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\vertex.vert">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
