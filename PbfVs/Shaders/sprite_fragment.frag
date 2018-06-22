@@ -29,16 +29,14 @@ void main() {
     normal.z = -sqrt(1.0 - r_sqr);
     normal = normalize(normal);
     
-    vec3 vsSphereSurfacePos = vsPos3 + normal * radius;
-    float depthZ = LinearizeDepth(gl_FragCoord.z) / FAR;
-    gl_FragDepth = depthZ;
+    // vec3 vsSphereSurfacePos = vsPos3 + normal * radius;
+    // float depthZ = LinearizeDepth(gl_FragCoord.z) / FAR;
+    // gl_FragDepth = depthZ;
 
     // defuse
-    vec4 lightPos = (view * model * vec4(100.0, 100.0, -100.0, 1.0));
-    vec3 lightDir = normalize(lightPos.xyz / lightPos.w - vsPos3);
-    float diffuse = max(0.0f, dot(normal, lightDir));
+    vec4 lightPos = vec4(-100.0, -100.0, -100.0, 1.0);
+    vec3 lightDir = normalize(lightPos.xyz - vsPos3);
+    float diffuse = max(0.2f, dot(normal, lightDir));
      
-    // color = vec4(abs(normal), 1.0f);
-    // color = vec4(vec3(depthZ), 1.0f);
     color = vec4(vertex_color * diffuse, 1.0f);
 }
