@@ -8,35 +8,31 @@
 
 #include "../include/utils.h"
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
-namespace pbf
-{
-	std::string ReadFile(const char *filepath)
-	{
-		std::ifstream fs(filepath, std::ios::in);
-		std::stringstream ss;
+namespace pbf {
+std::string ReadFile(const char *filepath) {
+  std::ifstream fs(filepath, std::ios::in);
+  std::stringstream ss;
 
-		if (!fs.is_open())
-		{
-			std::cerr << "Could not read file " << filepath << ". File does not exist." << std::endl;
-			return "";
-		}
+  if (!fs.is_open()) {
+    std::cerr << "Could not read file " << filepath << ". File does not exist."
+              << std::endl;
+    return "";
+  }
 
-		std::string line;
-		while (!fs.eof())
-		{
-			std::getline(fs, line);
-			if (!line.empty())
-			{
-				ss << line << '\n';
-			}
-		}
+  std::string line;
+  while (!fs.eof()) {
+    std::getline(fs, line);
+    if (!line.empty()) {
+      ss << line << '\n';
+    }
+  }
 
-		fs.close();
-		return ss.str();
-	}
+  fs.close();
+  return ss.str();
+}
 
 } // namespace pbf

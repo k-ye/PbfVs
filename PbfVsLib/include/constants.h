@@ -4,45 +4,45 @@
 #include <string>
 
 namespace pbf {
-    
-	////////////////////////////////////////////////////
-	// All the key names used in the config file of this solver
 
-	// World settings 
-	const std::string WORLD_SIZE = "world_size";
-    const std::string WORLD_SIZE_X = "world_size_x";
-    const std::string WORLD_SIZE_Y = "world_size_y";
-    const std::string WORLD_SIZE_Z = "world_size_z";
-	const std::string DELTA_TIME = "delta_time";
+////////////////////////////////////////////////////
+// All the key names used in the config file of this solver
 
-	// Camera
-	const std::string FOV = "fov";
-	const std::string PROJECTION_NEAR = "projection_near";
-	const std::string PROJECTION_FAR = "projection_far";
+// World settings
+const std::string WORLD_SIZE = "world_size";
+const std::string WORLD_SIZE_X = "world_size_x";
+const std::string WORLD_SIZE_Y = "world_size_y";
+const std::string WORLD_SIZE_Z = "world_size_z";
+const std::string DELTA_TIME = "delta_time";
 
-	const std::string CAMERA_SENSITIVITY = "camera_sensitivity";
-	const std::string INIT_ARCBALL_RADIUS = "init_arcball_radius";
-	const std::string MAX_ARCBALL_RADIUS = "max_arcball_radius";
+// Camera
+const std::string FOV = "fov";
+const std::string PROJECTION_NEAR = "projection_near";
+const std::string PROJECTION_FAR = "projection_far";
 
-	// Particle system
-	const std::string NUM_PTCS_WIDTH = "num_particles_width";
-	const std::string NUM_PTCS_HEIGHT = "num_particles_height";
-	const std::string NUM_PTC_LAYERS = "num_particle_layers";
-	const std::string PARTICLE_INTERVAL = "particle_interval";
+const std::string CAMERA_SENSITIVITY = "camera_sensitivity";
+const std::string INIT_ARCBALL_RADIUS = "init_arcball_radius";
+const std::string MAX_ARCBALL_RADIUS = "max_arcball_radius";
 
-	// PBF
-	const std::string H_KERNEL = "h";
-	const std::string PARTICLE_MASS = "mass";
-	const std::string RHO_0 = "rho_0";
-	const std::string EPSILON = "epsilon";
-	const std::string SH_CELL_SIZE = "sh_cell_size";
-	const std::string NUM_ITERATIONS = "num_iterations";
+// Particle system
+const std::string NUM_PTCS_WIDTH = "num_particles_width";
+const std::string NUM_PTCS_HEIGHT = "num_particles_height";
+const std::string NUM_PTC_LAYERS = "num_particle_layers";
+const std::string PARTICLE_INTERVAL = "particle_interval";
 
-	const std::string CORR_DELTA_Q_COEFF = "corr_delta_q_coeff";
-	const std::string CORR_K = "corr_k";
-	const std::string CORR_N = "corr_n";
+// PBF
+const std::string H_KERNEL = "h";
+const std::string PARTICLE_MASS = "mass";
+const std::string RHO_0 = "rho_0";
+const std::string EPSILON = "epsilon";
+const std::string SH_CELL_SIZE = "sh_cell_size";
+const std::string NUM_ITERATIONS = "num_iterations";
 
-	const std::string VORTICITY_EPSILON = "vorticity_epsilon";
-	const std::string XSPH_C = "xsph_c";
+const std::string CORR_DELTA_Q_COEFF = "corr_delta_q_coeff";
+const std::string CORR_K = "corr_k";
+const std::string CORR_N = "corr_n";
+
+const std::string VORTICITY_EPSILON = "vorticity_epsilon";
+const std::string XSPH_C = "xsph_c";
 } // namespace pbf
 #endif /* constants_h */

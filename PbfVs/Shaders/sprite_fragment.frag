@@ -34,7 +34,7 @@ void main() {
     // gl_FragDepth = depthZ;
 
     // defuse
-    vec4 lightPos = vec4(-100.0, -100.0, -100.0, 1.0);
+    vec4 lightPos = vec4(100.0, 100.0, -100.0, 1.0);
     vec3 lightDir = normalize(lightPos.xyz - vsPos3);
     float diffuse = max(0.2f, dot(normal, lightDir));
      

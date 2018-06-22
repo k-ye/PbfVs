@@ -6,35 +6,35 @@
 #include <vector>
 
 namespace pbf {
-	struct BoundaryPlane {
-        BoundaryPlane(const vec_t& n = vec_t{ 0.0f });
-        BoundaryPlane(const BoundaryPlane&) = default;
-        BoundaryPlane& operator=(const BoundaryPlane&) = default;
+struct BoundaryPlane {
+  BoundaryPlane(const vec_t &n = vec_t{0.0f});
+  BoundaryPlane(const BoundaryPlane &) = default;
+  BoundaryPlane &operator=(const BoundaryPlane &) = default;
 
-        vec_t position{ 0.0f };
-        vec_t velocity{ 0.0f };
-        vec_t normal;
-	};
+  vec_t position{0.0f};
+  vec_t velocity{0.0f};
+  vec_t normal;
+};
 
-	class BoundaryConstraintBase {
-	public:
-		BoundaryConstraintBase() = default;
-		virtual ~BoundaryConstraintBase() = default;
+class BoundaryConstraintBase {
+public:
+  BoundaryConstraintBase() = default;
+  virtual ~BoundaryConstraintBase() = default;
 
-        inline size_t NumBoundaries() const { return boundaries_.size(); }
+  inline size_t NumBoundaries() const { return boundaries_.size(); }
 
-		void ApplyBoundaryConstraint();
+  void ApplyBoundaryConstraint();
 
-		void Add(const BoundaryPlane& bp);
+  void Add(const BoundaryPlane &bp);
 
-		const BoundaryPlane& Get(size_t i) const;
-        BoundaryPlane* Get(size_t i);
-	
-	protected:
-		virtual void ApplyAtBoundary_(const BoundaryPlane& bp) = 0;
+  const BoundaryPlane &Get(size_t i) const;
+  BoundaryPlane *Get(size_t i);
 
-		std::vector<BoundaryPlane> boundaries_;
-	};
-}
+protected:
+  virtual void ApplyAtBoundary_(const BoundaryPlane &bp) = 0;
+
+  std::vector<BoundaryPlane> boundaries_;
+};
+} // namespace pbf
 
 #endif // boundary_constraint_h

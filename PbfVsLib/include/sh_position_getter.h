@@ -3,19 +3,15 @@
 
 #include "particle_system.h"
 
-namespace pbf 
-{
-	class PositionGetter
-	{
-	public:
-		PositionGetter(ParticleSystem* ps = nullptr) : ps_(ps) { }
+namespace pbf {
+class PositionGetter {
+public:
+  PositionGetter(ParticleSystem *ps = nullptr) : ps_(ps) {}
 
-		point_t operator()(size_t i) const
-		{
-			return ps_->Get(i).position();
-		}
-	private:
-		ParticleSystem* ps_;
-	};
+  point_t operator()(size_t i) const { return ps_->Get(i).position(); }
+
+private:
+  ParticleSystem *ps_;
+};
 } // namespace pbf
 #endif

@@ -13,63 +13,56 @@
 
 #include <vector>
 
-namespace pbf
-{
-    class ParticleSystem
-    {
-    public:
-        typedef size_t index_t;
-        
-    public:
-        struct Particle;
-        friend class Particle;
-        
-        class Particle
-        {
-        public:
-            Particle(const Particle& p) = default;
-            Particle& operator=(const Particle& p) = default;
-            
-            const point_t& position() const;
-            void set_position(const point_t& p);
-            
-            const point_t& velocity() const;
-            void set_velocity(const point_t& v);
-            
-            index_t index() const { return index_; }
-            
-        private:
-            Particle(ParticleSystem* ps, index_t i);
-            
-            friend class ParticleSystem;
-            
-        private:
-            ParticleSystem* ps_;
-            const index_t index_;
-        }; // class Particle
-        
-        inline size_t NumParticles() const { return particles_.size(); }
-        
-        Particle Get(index_t i) const;
-        
-        Particle Add(const point_t& p, const point_t& v);
-        
-        index_t Add(size_t n, const point_t& p, const point_t& v);
-        
-    private:
-        struct Record
-        {
-            Record(const point_t& p, const point_t& v)
-            : position(p)
-            , velocity(v)
-            { }
-            
-            point_t position;
-            point_t velocity;
-        };
-        
-        std::vector<Record> particles_;
-    }; // class ParticleSystem
+namespace pbf {
+class ParticleSystem {
+public:
+  typedef size_t index_t;
+
+public:
+  struct Particle;
+  friend class Particle;
+
+  class Particle {
+  public:
+    Particle(const Particle &p) = default;
+    Particle &operator=(const Particle &p) = default;
+
+    const point_t &position() const;
+    void set_position(const point_t &p);
+
+    const point_t &velocity() const;
+    void set_velocity(const point_t &v);
+
+    index_t index() const { return index_; }
+
+  private:
+    Particle(ParticleSystem *ps, index_t i);
+
+    friend class ParticleSystem;
+
+  private:
+    ParticleSystem *ps_;
+    const index_t index_;
+  }; // class Particle
+
+  inline size_t NumParticles() const { return particles_.size(); }
+
+  Particle Get(index_t i) const;
+
+  Particle Add(const point_t &p, const point_t &v);
+
+  index_t Add(size_t n, const point_t &p, const point_t &v);
+
+private:
+  struct Record {
+    Record(const point_t &p, const point_t &v) : position(p), velocity(v) {}
+
+    point_t position;
+    point_t velocity;
+  };
+
+  std::vector<Record> particles_;
+}; // class ParticleSystem
 } // namespace pbf
 
 #endif /* particle_system_h */

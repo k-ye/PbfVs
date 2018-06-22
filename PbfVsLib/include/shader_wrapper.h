@@ -5,24 +5,22 @@
 
 #include <string>
 
-namespace pbf
-{
+namespace pbf {
 
-class GLShaderWrapper
-{
+class GLShaderWrapper {
 public:
-    GLShaderWrapper() = default;
-    GLShaderWrapper(GLenum shader_type, const char* filepath);
-    ~GLShaderWrapper();
-    
-    void Init(GLenum shader_type, const char* filepath);
-    inline GLuint Get() const { return shader_; }
-    
+  GLShaderWrapper() = default;
+  GLShaderWrapper(GLenum shader_type, const char *filepath);
+  ~GLShaderWrapper();
+
+  void Init(GLenum shader_type, const char *filepath);
+  inline GLuint Get() const { return shader_; }
+
 private:
-    GLuint shader_;
-    bool created_{false};
+  GLuint shader_;
+  bool created_{false};
 };
-    
+
 } // namespace pbf
 
 #endif /* shader_wrapper_h */

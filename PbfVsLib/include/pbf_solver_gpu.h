@@ -1,139 +1,140 @@
 #ifndef pbf_solver_gpu_h
 #define pbf_solver_gpu_h
 
+#include <memory>
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
-#include <memory>
 
 #include "aabb.h"
+#include "boundary_gpu.h"
 #include "pbf_solver_base.h"
 #include "ps_gpu_adaptor.h"
-#include "boundary_gpu.h"
 
 namespace pbf {
-	template <typename T>
-	using d_vector = thrust::device_vector<T>;
+template <typename T> using d_vector = thrust::device_vector<T>;
 
-	class CellGridGpu {
-	public:
-		CellGridGpu(float3 world_sz, float cell_sz);
+class CellGridGpu {
+public:
+  CellGridGpu(float3 world_sz, float cell_sz);
 
-		float cell_size() const { return cell_sz_; }
-		const int3& num_cells_per_dim() const { return num_cells_per_dim_; }
-		int total_num_cells() const { return total_num_cells_; }
-		
-		d_vector<int> cell_is_active_flags;
-		d_vector<int> cell_to_active_cell_indices;
-		d_vector<int> active_cell_num_ptcs;
-		d_vector<int> ptc_begins_in_active_cell;
-		d_vector<int> cell_ptc_indices;
+  float cell_size() const { return cell_sz_; }
+  const int3 &num_cells_per_dim() const { return num_cells_per_dim_; }
+  int total_num_cells() const { return total_num_cells_; }
 
-		// Below are for debug purpose, we do not need to store these vectors.
-		d_vector<int> ptc_to_cell;
-		d_vector<int> ptc_offsets_within_cell;
-	private:
-		float3 world_sz_per_dim_;
-		float cell_sz_;
-		int3 num_cells_per_dim_;
-		int total_num_cells_;
-	};
+  d_vector<int> cell_is_active_flags;
+  d_vector<int> cell_to_active_cell_indices;
+  d_vector<int> active_cell_num_ptcs;
+  d_vector<int> ptc_begins_in_active_cell;
+  d_vector<int> cell_ptc_indices;
 
-	class GpuParticleNeighbors {
-	public:
-		// neighbors
-		d_vector<int> ptc_num_neighbors;
-		d_vector<int> ptc_neighbor_begins;
-		d_vector<int> ptc_neighbor_indices;
+  // Below are for debug purpose, we do not need to store these vectors.
+  d_vector<int> ptc_to_cell;
+  d_vector<int> ptc_offsets_within_cell;
 
-		inline int* ptc_num_neighbors_ptr() {
-			return thrust::raw_pointer_cast(ptc_num_neighbors.data());
-		}
-		
-		inline int* ptc_neighbor_begins_ptr() {
-			return thrust::raw_pointer_cast(ptc_neighbor_begins.data());
-		}
+private:
+  float3 world_sz_per_dim_;
+  float cell_sz_;
+  int3 num_cells_per_dim_;
+  int total_num_cells_;
+};
 
-		inline int* ptc_neighbor_indices_ptr() {
-			return thrust::raw_pointer_cast(ptc_neighbor_indices.data());
-		}
-	};
-	
-	void UpdateCellGrid(const d_vector<float3>& positions, 
-		CellGridGpu* cell_grid);
+class GpuParticleNeighbors {
+public:
+  // neighbors
+  d_vector<int> ptc_num_neighbors;
+  d_vector<int> ptc_neighbor_begins;
+  d_vector<int> ptc_neighbor_indices;
 
-	void FindParticleNeighbors(const d_vector<float3>& positions,
-		const CellGridGpu& cell_grid, const float h, GpuParticleNeighbors* pn);
+  inline int *ptc_num_neighbors_ptr() {
+    return thrust::raw_pointer_cast(ptc_num_neighbors.data());
+  }
 
-	class PbfSolverGpu : public PbfSolverBase {
-	public:
-		PbfSolverGpu() : PbfSolverBase(), num_ptcs_(0) {}
-		
-		void Update(float dt) override;
+  inline int *ptc_neighbor_begins_ptr() {
+    return thrust::raw_pointer_cast(ptc_neighbor_begins.data());
+  }
 
-        void SetBoundaryConstraint(BoundaryConstraintGpu* bc);
-	private:
-		// overrides		
-		void CustomConfigure_(const PbfSolverConfig& config) override;
-		
-		void CustomInitPs_() override;
+  inline int *ptc_neighbor_indices_ptr() {
+    return thrust::raw_pointer_cast(ptc_neighbor_indices.data());
+  }
+};
 
-		// helpers
-		void ResetParticleRecords_();
+void UpdateCellGrid(const d_vector<float3> &positions, CellGridGpu *cell_grid);
 
-		void RecordOldPositions_();
+void FindParticleNeighbors(const d_vector<float3> &positions,
+                           const CellGridGpu &cell_grid, const float h,
+                           GpuParticleNeighbors *pn);
 
-		void ApplyGravity_(const float dt);
+class PbfSolverGpu : public PbfSolverBase {
+public:
+  PbfSolverGpu() : PbfSolverBase(), num_ptcs_(0) {}
 
-		void ImposeBoundaryConstraint_();
-		
-		void FindNeighbors_();
-		
-		void ComputeLambdas_();
-		
-		void ComputeDeltaPositions_();
-		
-		void ApplyDeltaPositions_();
+  void Update(float dt) override;
 
-		void UpdateVelocities_(const float dt);
-		
-		void ComputeVorticities_();
-		
-		void ComputeVorticityCorrForces_();
-		
-		void ComputeXsphs_();
+  void SetBoundaryConstraint(BoundaryConstraintGpu *bc);
 
-		void ApplyVelocityCorrections_(const float dt);
-		
-		void UpdatePs_();
+private:
+  // overrides
+  void CustomConfigure_(const PbfSolverConfig &config) override;
 
-		inline float3* PositionsPtr_() { 
-            return thrust::raw_pointer_cast(ps_adaptor_->PositionsVec()->data()); 
-        }
-		
-		inline float3* VelocitiesPtr_() { 
-            return thrust::raw_pointer_cast(ps_adaptor_->VelocitiesVec()->data()); 
-        }
-	
-	private:
-		float cell_grid_size_;
-		int num_ptcs_;
+  void CustomInitPs_() override;
 
-        std::shared_ptr<ParticleSystemGpuAdaptor> ps_adaptor_;
-        BoundaryConstraintGpu* boundary_constraint_;
-		
-		// particle records 
-		GpuParticleNeighbors ptc_nb_recs_;
-		d_vector<float3> old_positions_;
-		d_vector<float> lambdas_;
-		d_vector<float3> delta_positions_;
-		d_vector<float3> vorticities_;
-		d_vector<float3> vorticity_corr_forces_;
-		d_vector<float3> xsphs_;
-	};
+  // helpers
+  void ResetParticleRecords_();
 
-	// For test purpose only
-	void Query(const d_vector<float3>& positions, const CellGridGpu& cell_grid,
-		const AABB& range, d_vector<int>* cell_num_ptcs_inside);
+  void RecordOldPositions_();
+
+  void ApplyGravity_(const float dt);
+
+  void ImposeBoundaryConstraint_();
+
+  void FindNeighbors_();
+
+  void ComputeLambdas_();
+
+  void ComputeDeltaPositions_();
+
+  void ApplyDeltaPositions_();
+
+  void UpdateVelocities_(const float dt);
+
+  void ComputeVorticities_();
+
+  void ComputeVorticityCorrForces_();
+
+  void ComputeXsphs_();
+
+  void ApplyVelocityCorrections_(const float dt);
+
+  void UpdatePs_();
+
+  inline float3 *PositionsPtr_() {
+    return thrust::raw_pointer_cast(ps_adaptor_->PositionsVec()->data());
+  }
+
+  inline float3 *VelocitiesPtr_() {
+    return thrust::raw_pointer_cast(ps_adaptor_->VelocitiesVec()->data());
+  }
+
+private:
+  float cell_grid_size_;
+  int num_ptcs_;
+
+  std::shared_ptr<ParticleSystemGpuAdaptor> ps_adaptor_;
+  BoundaryConstraintGpu *boundary_constraint_;
+
+  // particle records
+  GpuParticleNeighbors ptc_nb_recs_;
+  d_vector<float3> old_positions_;
+  d_vector<float> lambdas_;
+  d_vector<float3> delta_positions_;
+  d_vector<float3> vorticities_;
+  d_vector<float3> vorticity_corr_forces_;
+  d_vector<float3> xsphs_;
+};
+
+// For test purpose only
+void Query(const d_vector<float3> &positions, const CellGridGpu &cell_grid,
+           const AABB &range, d_vector<int> *cell_num_ptcs_inside);
 
 } // namespace pbf
 

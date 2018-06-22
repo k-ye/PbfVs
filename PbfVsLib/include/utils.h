@@ -9,13 +9,12 @@
 #ifndef utils_h
 #define utils_h
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <string>
 
-namespace pbf
-{
-    std::string ReadFile(const char *filepath);
+namespace pbf {
+std::string ReadFile(const char *filepath);
 } // namespace pbf
 
 #endif /* utils_h */

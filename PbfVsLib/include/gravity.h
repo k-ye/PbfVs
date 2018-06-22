@@ -12,17 +12,17 @@
 #include "typedefs.h"
 
 namespace pbf {
-    class ParticleSystem;
-    
-    class GravityEffect {
-    public:
-        GravityEffect();
-        
-        void Evaluate(float dt, ParticleSystem* ps);
-        
-    private:
-        vec_t gravity_;
-    };
+class ParticleSystem;
+
+class GravityEffect {
+public:
+  GravityEffect();
+
+  void Evaluate(float dt, ParticleSystem *ps);
+
+private:
+  vec_t gravity_;
+};
 } // namespace pbf
 
 #endif /* test_force_h */

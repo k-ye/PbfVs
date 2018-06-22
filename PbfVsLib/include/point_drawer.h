@@ -15,18 +15,18 @@
 #include <vector>
 
 namespace pbf {
-    ////////////////////////////////////////////////////
-    // These functions draw a point as a octahedron.
-    
-    void AddPointToDraw(const glm::vec3& pt, std::vector<GLfloat>* vertices,
-		std::vector<GLuint>* indices, 
-		const glm::vec3& color = glm::vec3{1.0f, 0.5f, 0.2f},
-		float size = 0.5f);
-    
-    void ChangePointToDraw(const glm::vec3& pt, size_t index, 
-		std::vector<GLfloat>* vertices, 
-		const glm::vec3& color = glm::vec3{1.0f, 0.5f, 0.2f},
-		float size = 0.5f);
+////////////////////////////////////////////////////
+// These functions draw a point as a octahedron.
+
+void AddPointToDraw(const glm::vec3 &pt, std::vector<GLfloat> *vertices,
+                    std::vector<GLuint> *indices,
+                    const glm::vec3 &color = glm::vec3{1.0f, 0.5f, 0.2f},
+                    float size = 0.5f);
+
+void ChangePointToDraw(const glm::vec3 &pt, size_t index,
+                       std::vector<GLfloat> *vertices,
+                       const glm::vec3 &color = glm::vec3{1.0f, 0.5f, 0.2f},
+                       float size = 0.5f);
 } // namespace pbf
 
 #endif /* point_drawer_h */

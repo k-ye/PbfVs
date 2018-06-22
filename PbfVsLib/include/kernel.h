@@ -4,9 +4,9 @@
 #include "kernel.cuh"
 
 namespace pbf {
-	float Poly6Value(const point_t& r, const float h);
-	
-	vec_t SpikyGradient(const point_t& r, const float h);
+float Poly6Value(const point_t &r, const float h);
+
+vec_t SpikyGradient(const point_t &r, const float h);
 } // namespace pbf
 
-#endif // kernel_h 
+#endif // kernel_h
