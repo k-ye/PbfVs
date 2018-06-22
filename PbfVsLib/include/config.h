@@ -1,12 +1,12 @@
 #ifndef config_h
 #define config_h
 
-#include "typedefs.h"
-
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+
+#include "typedefs.h"
 
 namespace pbf {
 namespace detail_ {
@@ -54,7 +54,7 @@ template <typename T> T Cast(const std::string &val_str) {
 class Config {
 public:
   // Load a config file in |filepath|
-  void Load(const char *filepath);
+  void Load(const std::string &filepath);
 
   // Get the value of |key| optionally. Returns false if |key| is not found.
   // Otherwise stores the value in |result| and returns true.

@@ -19,7 +19,7 @@ public:
   typedef size_t index_t;
 
 public:
-  struct Particle;
+  class Particle;
   friend class Particle;
 
   class Particle {

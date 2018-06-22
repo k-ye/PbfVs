@@ -58,4 +58,4 @@ private:
 };
 } // namespace pbf
 
-#endif /* arcball_cameca_h */
+#endif // arcball_cameca_h

@@ -33,7 +33,7 @@ float Cast(const std::string &val_str, TypeTrait<float>) {
 }
 } // namespace detail_
 
-void Config::Load(const char *filepath) {
+void Config::Load(const std::string& filepath) {
   kv_map_.clear();
 
   std::stringstream ss;

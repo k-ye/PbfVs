@@ -94,6 +94,9 @@
     <ClInclude Include="include\shader_program.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\obj_model.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\aabb.cpp">
@@ -135,9 +138,6 @@
     <ClCompile Include="src\typedefs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\kernel.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\boundary_base.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -145,6 +145,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\shader_program.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\obj_model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kernel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

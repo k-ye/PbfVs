@@ -51,6 +51,10 @@ void SceneRenderer::SetPespectiveProjection(float fov, float wh_aspect,
   proj_ = glm::perspective(fov, wh_aspect, near, far);
 }
 
+void SceneRenderer::RegisterObjModel(const ObjModel *obj_model) {
+  obj_models_.push_back(obj_model);
+}
+
 void SceneRenderer::InitShaders(const char *vert_path, const char *frag_path) {
   shader_program_.Init(vert_path, frag_path);
 }
@@ -60,7 +64,7 @@ void SceneRenderer::InitSpriteShaders(const char *vert_path,
   sprite_shader_program_.Init(vert_path, frag_path);
 }
 
-void SceneRenderer::SetVao_(GLuint vao, GLuint vbo, GLuint ebo) const {
+void SceneRenderer::SetVao(GLuint vao, GLuint vbo, GLuint ebo) const {
   glBindVertexArray(vao);
 
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -100,23 +104,7 @@ void SceneRenderer::InitScene() {
   // TODO: huge function, split
 
   // set up boundaries
-  PrepareBoundaryBuffers_();
-
-  auto StoreBoundaryIndices = [this](size_t i) {
-    GLuint vertex_begin = i * 4;
-    size_t vidx_begin = i * 6;
-    boundary_indices_[vidx_begin + 0] = vertex_begin;
-    boundary_indices_[vidx_begin + 1] = vertex_begin + 1;
-    boundary_indices_[vidx_begin + 2] = vertex_begin + 2;
-    boundary_indices_[vidx_begin + 3] = vertex_begin;
-    boundary_indices_[vidx_begin + 4] = vertex_begin + 2;
-    boundary_indices_[vidx_begin + 5] = vertex_begin + 3;
-  };
-
-  for (size_t i = 0; i < boundary_records_.size(); ++i) {
-    // UpdateBoundaryAt_(i);
-    StoreBoundaryIndices(i);
-  }
+  PrepareBoundaryBuffers();
 
   glGenVertexArrays(1, &boundaries_vao_);
   glGenBuffers(1, &boundaries_vbo_);
@@ -126,7 +114,7 @@ void SceneRenderer::InitScene() {
   glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                sizeof(GLuint) * boundary_indices_.size(),
                boundary_indices_.data(), GL_STATIC_DRAW);
-  SetVao_(boundaries_vao_, boundaries_vbo_, boundaries_ebo_);
+  SetVao(boundaries_vao_, boundaries_vbo_, boundaries_ebo_);
 
   // set up frame
   frame_vertices_ = {
@@ -154,7 +142,21 @@ void SceneRenderer::InitScene() {
                frame_indices_.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-  SetVao_(frame_vao_, frame_vbo_, frame_ebo_);
+  SetVao(frame_vao_, frame_vbo_, frame_ebo_);
+
+  // set up registered obj models
+  PrepareObjModelsBuffers();
+
+  glGenVertexArrays(1, &obj_models_vao_);
+  glGenBuffers(1, &obj_models_vbo_);
+  glGenBuffers(1, &obj_models_ebo_);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, obj_models_ebo_);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+               sizeof(GLuint) * obj_models_indices_.size(),
+               obj_models_indices_.data(), GL_STATIC_DRAW);
+  SetVao(obj_models_vao_, obj_models_vbo_, obj_models_ebo_);
+
   // set up particles
   for (size_t p_i = 0; p_i < ps_->NumParticles(); ++p_i) {
     auto ptc = ps_->Get(p_i);
@@ -169,10 +171,89 @@ void SceneRenderer::InitScene() {
   glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
 
-void SceneRenderer::PrepareBoundaryBuffers_() {
+void SceneRenderer::PrepareBoundaryBuffers() {
   const int num_boundaries = boundary_records_.size();
+  // Each vertex occupies six floats:
+  // the first three are the position (x, y, z)
+  // the last three are the color (r, g, b)
   boundary_vertices_.resize(4 * 6 * num_boundaries, 0.0f);
   boundary_indices_.resize(6 * num_boundaries, 0);
+
+  vec_t color;
+  color.r = 1.0f;
+  color.g = 0.5f;
+  color.b = 0.2f;
+  for (int i = 0; i < num_boundaries; ++i) {
+    size_t vertex_begin = i * 6 * 4;
+
+    boundary_vertices_[vertex_begin + 3] = color.r;
+    boundary_vertices_[vertex_begin + 4] = color.g;
+    boundary_vertices_[vertex_begin + 5] = color.b;
+
+    boundary_vertices_[vertex_begin + 9] = color.r;
+    boundary_vertices_[vertex_begin + 10] = color.g;
+    boundary_vertices_[vertex_begin + 11] = color.b;
+
+    boundary_vertices_[vertex_begin + 15] = color.r;
+    boundary_vertices_[vertex_begin + 16] = color.g;
+    boundary_vertices_[vertex_begin + 17] = color.b;
+
+    boundary_vertices_[vertex_begin + 21] = color.r;
+    boundary_vertices_[vertex_begin + 22] = color.g;
+    boundary_vertices_[vertex_begin + 23] = color.b;
+  }
+
+  for (size_t i = 0; i < boundary_records_.size(); ++i) {
+    GLuint vertex_begin = i * 4;
+    size_t vidx_begin = i * 6;
+    boundary_indices_[vidx_begin + 0] = vertex_begin;
+    boundary_indices_[vidx_begin + 1] = vertex_begin + 1;
+    boundary_indices_[vidx_begin + 2] = vertex_begin + 2;
+    boundary_indices_[vidx_begin + 3] = vertex_begin;
+    boundary_indices_[vidx_begin + 4] = vertex_begin + 2;
+    boundary_indices_[vidx_begin + 5] = vertex_begin + 3;
+  }
+}
+
+void SceneRenderer::PrepareObjModelsBuffers() {
+  size_t num_vertices = 0;
+  size_t num_faces = 0;
+  for (const ObjModel *obj : obj_models_) {
+    num_vertices += obj->vertices.size();
+    num_faces += obj->faces.size();
+  }
+  // Each vertex occupies six floats:
+  // the first three are the position (x, y, z)
+  // the last three are the color (r, g, b)
+  obj_models_vertices_.resize(6 * num_vertices, 0.0f);
+  obj_models_indices_.resize(3 * num_faces);
+
+  vec_t color;
+  color.r = 1.0f;
+  color.g = 0.5f;
+  color.b = 0.2f;
+  for (size_t i = 0; i < num_vertices; ++i) {
+    size_t vertex_begin = i * 6;
+
+    obj_models_vertices_[vertex_begin + 3] = color.r;
+    obj_models_vertices_[vertex_begin + 4] = color.g;
+    obj_models_vertices_[vertex_begin + 5] = color.b;
+  }
+
+  size_t face_idx = 0;
+  size_t accum_num_vertices = 0;
+  for (size_t oi = 0; oi < obj_models_.size(); ++oi) {
+    const ObjModel *obj = obj_models_[oi];
+    for (const auto &face : obj->faces) {
+      obj_models_indices_[face_idx + 0] = face.x + accum_num_vertices;
+      obj_models_indices_[face_idx + 1] = face.y + accum_num_vertices;
+      obj_models_indices_[face_idx + 2] = face.z + accum_num_vertices;
+      face_idx += 3;
+    }
+    accum_num_vertices += obj->vertices.size();
+  }
+  assert(face_idx == obj_models_indices_.size());
+  assert(accum_num_vertices == num_vertices);
 }
 
 void SceneRenderer::Render() {
@@ -183,6 +264,7 @@ void SceneRenderer::Render() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   {
+    // update viewpoint matrices
     WithShaderProgram w{shader_program_};
     GLuint model_loc = shader_program_.GetUniformLoc("model");
     glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(model_));
@@ -196,7 +278,7 @@ void SceneRenderer::Render() {
 
     // draw the boundaries
     for (size_t i = 0; i < boundary_records_.size(); ++i) {
-      UpdateBoundaryAt_(i);
+      UpdateBoundaryAt(i);
     }
     glBindBuffer(GL_ARRAY_BUFFER, boundaries_vbo_);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * boundary_vertices_.size(),
@@ -211,6 +293,19 @@ void SceneRenderer::Render() {
     // draw the xyz frame
     glBindVertexArray(frame_vao_);
     glDrawElements(GL_LINES, (int)frame_indices_.size(), GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+
+    // draw the registered obj models
+    UpdateObjModelsPositions();
+
+    glBindBuffer(GL_ARRAY_BUFFER, obj_models_vbo_);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * obj_models_vertices_.size(),
+                 obj_models_vertices_.data(), GL_STREAM_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glBindVertexArray(obj_models_vao_);
+    glDrawElements(GL_TRIANGLES, (int)obj_models_indices_.size(), GL_UNSIGNED_INT,
+                   0);
     glBindVertexArray(0);
   }
 
@@ -255,9 +350,7 @@ void SceneRenderer::Render() {
   }
 }
 
-void SceneRenderer::UpdateBoundaryAt_(size_t i) {
-  // if (i == 1) return;
-
+void SceneRenderer::UpdateBoundaryAt(size_t i) {
   const auto &brec = boundary_records_[i];
   const auto boundary =
       const_cast<const BoundaryConstraintBase *>(boundary_constraint_)->Get(i);
@@ -270,10 +363,10 @@ void SceneRenderer::UpdateBoundaryAt_(size_t i) {
     vec_t rot_axis{0.0f};
     glm::mat4 result;
     if (glm::abs(1.0f - ref_b_normal_dot) <= kFloatEpsilon) {
-      // ref_normal and b_normal is aligned
+      // |ref_normal| and |b_normal| is aligned
       return result;
     } else if (glm::abs(-1.0f - ref_b_normal_dot) <= kFloatEpsilon) {
-      // ref_normal and b_normal points to the opposite direction
+      // |ref_normal| and |b_normal| point to the opposite direction
       rot_angle = glm::acos(-1.0f);
       // pick up +y dir that is perpendicular to |ref_normal|
       rot_axis = vec_t{0.0f, 1.0f, 0.0f};
@@ -295,32 +388,35 @@ void SceneRenderer::UpdateBoundaryAt_(size_t i) {
   point_t v3 = b_anchor + dir2;
 
   size_t vertex_begin = i * 6 * 4;
+
   boundary_vertices_[vertex_begin + 0] = v0.x;
   boundary_vertices_[vertex_begin + 1] = v0.y;
   boundary_vertices_[vertex_begin + 2] = v0.z;
-  boundary_vertices_[vertex_begin + 3] = 1.0f;
-  boundary_vertices_[vertex_begin + 4] = 0.5f;
-  boundary_vertices_[vertex_begin + 5] = 0.2f;
 
   boundary_vertices_[vertex_begin + 6] = v1.x;
   boundary_vertices_[vertex_begin + 7] = v1.y;
   boundary_vertices_[vertex_begin + 8] = v1.z;
-  boundary_vertices_[vertex_begin + 9] = 1.0f;
-  boundary_vertices_[vertex_begin + 10] = 0.5f;
-  boundary_vertices_[vertex_begin + 11] = 0.2f;
 
   boundary_vertices_[vertex_begin + 12] = v2.x;
   boundary_vertices_[vertex_begin + 13] = v2.y;
   boundary_vertices_[vertex_begin + 14] = v2.z;
-  boundary_vertices_[vertex_begin + 15] = 1.0f;
-  boundary_vertices_[vertex_begin + 16] = 0.5f;
-  boundary_vertices_[vertex_begin + 17] = 0.2f;
 
   boundary_vertices_[vertex_begin + 18] = v3.x;
   boundary_vertices_[vertex_begin + 19] = v3.y;
   boundary_vertices_[vertex_begin + 20] = v3.z;
-  boundary_vertices_[vertex_begin + 21] = 1.0f;
-  boundary_vertices_[vertex_begin + 22] = 0.5f;
-  boundary_vertices_[vertex_begin + 23] = 0.2f;
 }
+
+void SceneRenderer::UpdateObjModelsPositions() {
+  size_t vert_idx = 0;
+  for (const ObjModel *obj : obj_models_) {
+    for (const point_t &v : obj->vertices) {
+      obj_models_vertices_[vert_idx + 0] = v.x;
+      obj_models_vertices_[vert_idx + 1] = v.y;
+      obj_models_vertices_[vert_idx + 2] = v.z;
+      vert_idx += 6;
+    }
+  }
+  assert(vert_idx == obj_models_vertices_.size());
+}
+
 } // namespace pbf

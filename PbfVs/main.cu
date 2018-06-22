@@ -30,6 +30,7 @@
 #include "include/shader_wrapper.h"
 #include "include/shared_math.h"
 #include "include/spatial_hash.h"
+#include "include/obj_model.h"
 
 ////////////////////////////////////////////////////
 
@@ -157,9 +158,12 @@ int main() {
   glfwGetFramebufferSize(window, &width, &height);
   glViewport(0, 0, width, height);
 
+  pbf::ObjModel bunny_obj = pbf::LoadObjModel("Model/bunny.obj");
+  std::cout << "bunny_obj, #vertices=" << bunny_obj.vertices.size() << ", #faces=" << bunny_obj.faces.size();
   render.InitShaders("Shaders/vertex.vert", "Shaders/fragment.frag");
   render.InitSpriteShaders("Shaders/sprite_vertex.vert",
                            "Shaders/sprite_fragment.frag");
+  render.RegisterObjModel(&bunny_obj);
   render.InitScene();
 
   // Game loop

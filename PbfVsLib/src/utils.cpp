@@ -13,25 +13,43 @@
 #include <sstream>
 
 namespace pbf {
-std::string ReadFile(const char *filepath) {
+
+std::string TrimLeft(const std::string &s, const std::string &matcher_str) {
+    //  https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
+    auto start_pos = s.find_first_not_of(matcher_str);
+    if (start_pos != std::string::npos) {
+        return s.substr(start_pos);
+    }
+    return "";
+}
+int ReadFileByLine(const std::string &filepath,
+                   const std::function<void(const std::string &)> &f) {
   std::ifstream fs(filepath, std::ios::in);
-  std::stringstream ss;
 
   if (!fs.is_open()) {
     std::cerr << "Could not read file " << filepath << ". File does not exist."
               << std::endl;
-    return "";
+    return -1;
   }
 
   std::string line;
   while (!fs.eof()) {
     std::getline(fs, line);
-    if (!line.empty()) {
-      ss << line << '\n';
-    }
+    f(line);
   }
 
   fs.close();
+  return 0;
+}
+
+std::string ReadFile(const std::string &filepath) {
+  std::stringstream ss;
+  auto f = [&ss](const std::string &line) {
+    if (!line.empty()) {
+      ss << line << '\n';
+    }
+  };
+  ReadFileByLine(filepath, f);
   return ss.str();
 }
 

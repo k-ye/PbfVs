@@ -9,6 +9,7 @@
 #include "glm_headers.h"
 #include "particle_system.h"
 #include "shader_program.h"
+#include "obj_model.h"
 
 namespace pbf {
 class ArcballCamera;
@@ -29,6 +30,9 @@ public:
   void SetPespectiveProjection(float fov, float wh_aspect, float near,
                                float far);
 
+  // |obj_model| must exist during the lifetime of this object!
+  void RegisterObjModel(const ObjModel* obj_model);
+  
   // TOOD: we might need to have multiple shader programs in the future, so
   // this function signature should be deprecated
   void InitShaders(const char *vert_path, const char *frag_path);
@@ -39,16 +43,21 @@ public:
 
   void Render();
 
-  void SetVao_(GLuint vao, GLuint vbo, GLuint ebo) const;
-
-  void PrepareBoundaryBuffers_();
-
-  void UpdateBoundaryAt_(size_t i);
 
 private:
+  void SetVao(GLuint vao, GLuint vbo, GLuint ebo) const;
+
+  void PrepareBoundaryBuffers();
+  
+  void PrepareObjModelsBuffers();
+
+  void UpdateBoundaryAt(size_t i);
+
+  void UpdateObjModelsPositions();
+  
   pbf::ArcballCamera *camera_;
   pbf::ParticleSystem *ps_;
-
+  std::vector<const ObjModel*> obj_models_;
   // OpenGL transformation matrices
   glm::mat4 model_;
   glm::mat4 proj_;
@@ -76,6 +85,15 @@ private:
 
   std::vector<GLfloat> frame_vertices_;
   std::vector<GLuint> frame_indices_;
+
+  // registered object models
+  GLuint obj_models_vao_;
+  GLuint obj_models_vbo_;
+  GLuint obj_models_ebo_;
+
+  std::vector<GLfloat> obj_models_vertices_;
+  std::vector<GLuint> obj_models_indices_;
+
   // particles
   GLuint particles_vao_;
   GLuint particles_vbo_;
