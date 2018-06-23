@@ -5,6 +5,7 @@
 #include <limits>
 #include <sstream>
 
+#include "../include/aabb.h"
 #include "../include/shared_math.h"
 #include "../include/typedefs.h"
 #include "../include/utils.h"
@@ -15,22 +16,34 @@ namespace {
 using GridBitmask = std::vector<int>;
 using glm::vec2;
 
+point_t FindLowerBound(const ObjModel &obj_model) {
+  point_t lb;
+  lb.x = std::numeric_limits<float>::max();
+  lb.y = std::numeric_limits<float>::max();
+  lb.z = std::numeric_limits<float>::max();
+  for (const point_t &v : obj_model.vertices) {
+    lb.x = std::min(lb.x, v.x);
+    lb.y = std::min(lb.y, v.y);
+    lb.z = std::min(lb.z, v.z);
+  }
+  return lb;
+}
+
+point_t FindUpperBound(const ObjModel &obj_model) {
+  point_t ub;
+  ub.x = std::numeric_limits<float>::lowest();
+  ub.y = std::numeric_limits<float>::lowest();
+  ub.z = std::numeric_limits<float>::lowest();
+  for (const point_t &v : obj_model.vertices) {
+    ub.x = std::max(ub.x, v.x);
+    ub.y = std::max(ub.y, v.y);
+    ub.z = std::max(ub.z, v.z);
+  }
+  return ub;
+}
 void PlaceObjModel(point_t o, float scale, ObjModel *obj_model) {
   // Lower left
-  point_t ll;
-  ll.x = std::numeric_limits<float>::max();
-  ll.y = std::numeric_limits<float>::max();
-  ll.z = std::numeric_limits<float>::max();
-
-  for (const point_t &v : obj_model->vertices) {
-    ll.x = std::min(ll.x, v.x);
-    ll.y = std::min(ll.y, v.y);
-    ll.z = std::min(ll.z, v.z);
-  }
-  // std::cout << "lower-left: " <<  ll.x << ", " << ll.y << ", " << ll.z <<
-  // std::endl; std::cout << "new origin: " <<  o.x << ", " << o.y << ", " <<
-  // o.z << std::endl; std::cout << "scale: " <<  scale << std::endl;
-
+  point_t ll = FindLowerBound(*obj_model);
   auto Compute = [=](float min_p, float vert_p, float o_p) -> float {
     return ((vert_p - min_p) * scale + o_p);
   };
@@ -116,15 +129,14 @@ void FillBitmask(const ObjModel &obj_model, const glm::tvec3<int> &grid_sz,
 
     int grid_x_begin = PosToGrid(min_x);
     if (GridToPos(grid_x_begin) < min_x - kFloatEpsilon) {
-        grid_x_begin += 1;
+      grid_x_begin += 1;
     }
     int grid_y_begin = PosToGrid(min_y);
     if (GridToPos(grid_y_begin) < min_y - kFloatEpsilon) {
-        grid_y_begin += 1;
+      grid_y_begin += 1;
     }
 
     glm::tvec2<int> grid_xy = {grid_x_begin, grid_y_begin};
-    // std::cout << " checking min " << min_x << ", " << min_y << " to max " << max_x << ", " << max_y << "\n";
     vec2 cur_xy(0.0f);
     cur_xy.x = GridToPos(grid_xy.x);
     while (cur_xy.x < max_x) {
@@ -206,18 +218,33 @@ FillPointsInObjModels(const std::vector<ObjModel> &obj_models,
     return (float)(grid * interval + half_interval);
   };
 
+  std::vector<AABB> obj_aabbs;
+  for (const auto &obj_model : obj_models) {
+    AABB aabb(FindLowerBound(obj_model), FindUpperBound(obj_model));
+    obj_aabbs.push_back(aabb);
+  }
+
   std::vector<point_t> result;
   for (int x = 0; x < grid_sz.x; ++x) {
     for (int y = 0; y < grid_sz.y; ++y) {
       for (int z = 0; z < grid_sz.z; ++z) {
         size_t idx = ToFlatGridIndex(x, y, z, grid_sz);
         if (flat_grid_bm[idx] & 1) {
-            point_t pt;
-            pt.x = GridToPos(x);
-            pt.y = GridToPos(y);
-            pt.z = GridToPos(z);
+          point_t pt;
+          pt.x = GridToPos(x);
+          pt.y = GridToPos(y);
+          pt.z = GridToPos(z);
+          bool in_aabb = false;
+          for (const AABB &aabb : obj_aabbs) {
+            if (aabb.Contains(pt)) {
+              in_aabb = true;
+              break;
+            }
+          }
+          if (in_aabb) {
             // std::cout << x << ", " << y << ", " << z << '\n';
             result.push_back(pt);
+          }
         }
       }
     }
