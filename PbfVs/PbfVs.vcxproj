@@ -172,6 +172,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Config\config.txt" />
+    <Text Include="Config\model_defs.txt" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\fragment.frag" />

@@ -9,8 +9,9 @@
 
 - [x] CPU impl
 - [x] GPU impl
+- [ ] Customizable particle system
 - [ ] Fluid Rendering (not particle rendering)
-- [ ] Refactor
+- [ ] Code refactoring
 - [ ] Optional build on GPU impl
 
 ## Some Images
@@ -43,3 +44,4 @@ OpenGL coordinate system reference
 - ["Screen Space Fluid Rendering for Games", NVIDIA, GDC 2010](http://developer.download.nvidia.com/presentations/2010/gdc/Direct3D_Effects.pdf)
 - ["Particle Simulation using CUDA", Simon Green](http://developer.download.nvidia.com/assets/cuda/files/particles.pdf)
 - [Good OpenGL Tutorial for Beginners](https://learnopengl.com/)
+- [Eisemann, Elmar, and Xavier Décoret. "Single-pass GPU solid voxelization for real-time applications."](http://maverick.inria.fr/Publications/2008/ED08a/solidvoxelizationAuthorVersion.pdf)

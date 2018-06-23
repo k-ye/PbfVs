@@ -97,6 +97,9 @@
     <ClInclude Include="include\obj_model.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\obj_models_config_loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\aabb.cpp">
@@ -151,6 +154,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\kernel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\obj_models_config_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

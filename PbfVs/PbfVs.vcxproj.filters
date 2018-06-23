@@ -20,6 +20,9 @@
     <Text Include="Config\config.txt">
       <Filter>Config</Filter>
     </Text>
+    <Text Include="Config\model_defs.txt">
+      <Filter>Config</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\fragment.frag">

@@ -16,12 +16,13 @@
 #include "device_launch_parameters.h"
 
 // PBF
-#include "include/config.h"
-#include "include/constants.h"
-
 #include "include/arcball_camera.h"
 #include "include/boundary_gpu.h"
+#include "include/config.h"
+#include "include/constants.h"
 #include "include/gl_fix.h"
+#include "include/obj_model.h"
+#include "include/obj_models_config_loader.h"
 #include "include/particle_system.h"
 #include "include/pbf_solver.h"
 #include "include/pbf_solver_gpu.h"
@@ -30,9 +31,10 @@
 #include "include/shader_wrapper.h"
 #include "include/shared_math.h"
 #include "include/spatial_hash.h"
-#include "include/obj_model.h"
 
 ////////////////////////////////////////////////////
+
+// TODO(k-ye): These global variables should be cleaned up
 
 // Window dimensions
 const GLuint WIDTH = 1024, HEIGHT = 768;
@@ -158,12 +160,15 @@ int main() {
   glfwGetFramebufferSize(window, &width, &height);
   glViewport(0, 0, width, height);
 
-  pbf::ObjModel bunny_obj = pbf::LoadObjModel("Model/bunny.obj");
-  std::cout << "bunny_obj, #vertices=" << bunny_obj.vertices.size() << ", #faces=" << bunny_obj.faces.size();
+  // Once loaded, |obj_models| should never change its size.
+  std::vector<pbf::ObjModel> obj_models =
+      pbf::LoadModelsFromConfigFile("Config/model_defs.txt");
   render.InitShaders("Shaders/vertex.vert", "Shaders/fragment.frag");
   render.InitSpriteShaders("Shaders/sprite_vertex.vert",
                            "Shaders/sprite_fragment.frag");
-  render.RegisterObjModel(&bunny_obj);
+  for (const pbf::ObjModel &obj_model : obj_models) {
+    render.RegisterObjModel(&obj_model);
+  }
   render.InitScene();
 
   // Game loop
@@ -299,12 +304,12 @@ void InitParticles(const pbf::Config &config) {
     return (world_sz_dim - ((num_dim - 1) * interval)) * 0.5f;
   };
 
+  float margin_y = ComputeMargin(world_size_y, num_y);
+  float margin_z = ComputeMargin(world_size_z, num_z);
+  float margin_x = ComputeMargin(world_size_x, num_x);
   for (unsigned y = 0; y < num_y; ++y) {
-    float margin_y = ComputeMargin(world_size_y, num_y);
     for (unsigned z = 0; z < num_z; ++z) {
-      float margin_z = ComputeMargin(world_size_z, num_z);
       for (unsigned x = 0; x < num_x; ++x) {
-        float margin_x = ComputeMargin(world_size_x, num_x);
         float xf = margin_x + x * interval;
         float yf = world_size_y - margin_y - y * interval;
         float zf = margin_z + z * interval;

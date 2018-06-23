@@ -18,12 +18,12 @@ ObjModel LoadObjModel(const std::string &filepath) {
     ss >> junk;
     point_t v;
     ss >> v.x >> v.y >> v.z;
-    v.x *= 100.0f;
-    v.y *= 100.0f;
-    v.z *= 100.0f;
+    // v.x *= 100.0f;
+    // v.y *= 100.0f;
+    // v.z *= 100.0f;
     result.vertices.push_back(v);
   };
-  // Read the vertices in the first pass.
+  // Read the vertices in the second pass.
   ReadFileByLine(filepath, vert_f);
 
   bool ok = true;
