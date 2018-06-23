@@ -24,9 +24,9 @@ void PlaceObjModel(point_t o, float scale, ObjModel *obj_model) {
     ll.y = std::min(ll.y, v.y);
     ll.z = std::min(ll.z, v.z);
   }
-  std::cout << "lower-left: " <<  ll.x << ", " << ll.y << ", " << ll.z << std::endl;
-  std::cout << "new origin: " <<  o.x << ", " << o.y << ", " << o.z << std::endl;
-  std::cout << "scale: " <<  scale << std::endl;
+  // std::cout << "lower-left: " <<  ll.x << ", " << ll.y << ", " << ll.z << std::endl;
+  // std::cout << "new origin: " <<  o.x << ", " << o.y << ", " << o.z << std::endl;
+  // std::cout << "scale: " <<  scale << std::endl;
 
   auto Compute = [=](float min_p, float vert_p, float o_p) -> float {
     return ((vert_p - min_p) * scale + o_p);
