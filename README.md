@@ -45,3 +45,4 @@ OpenGL coordinate system reference
 - ["Particle Simulation using CUDA", Simon Green](http://developer.download.nvidia.com/assets/cuda/files/particles.pdf)
 - [Good OpenGL Tutorial for Beginners](https://learnopengl.com/)
 - [Eisemann, Elmar, and Xavier Décoret. "Single-pass GPU solid voxelization for real-time applications."](http://maverick.inria.fr/Publications/2008/ED08a/solidvoxelizationAuthorVersion.pdf)
+- [Point in Triangle Test](http://blackpawn.com/texts/pointinpoly/default.html)

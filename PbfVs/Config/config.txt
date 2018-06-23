@@ -1,4 +1,4 @@
-particle_interval=1.0f
+particle_interval=0.75f
 h=1.2f
 mass=1.0f
 rho_0=1.0f
@@ -6,8 +6,8 @@ epsilon=200.0f
 
 # both CPU and GPU cell grid uses this to determine the cell size 
 # of the searching grid. Need to have a consistent name
-sh_cell_size=1.5ff
-num_iterations=6
+sh_cell_size=1.5f
+num_iterations=10
 corr_delta_q_coeff=0.3;
 corr_k=0.001f;
 corr_n=4;
@@ -15,17 +15,17 @@ vorticity_epsilon=1.0f;
 xsph_c=0.001f;
 
 projection_far=160.0f
-init_arcball_radius=72.0f
+init_arcball_radius=100.0f
 max_arcball_radius=200.0f
 
 # GPU params
-world_size_x=60.0f
-world_size_y=30.0f
-world_size_z=30.0f
+world_size_x=32.0f
+world_size_y=54.0f
+world_size_z=32.0f
 delta_time=0.033f
-num_particles_width=30
-num_particles_height=30
-num_particle_layers=24
+num_particles_width=36
+num_particles_height=36
+num_particle_layers=15
 
 # CPU params
 # world_size_x=30.0f

@@ -22,7 +22,7 @@
 #include "include/constants.h"
 #include "include/gl_fix.h"
 #include "include/obj_model.h"
-#include "include/obj_models_config_loader.h"
+#include "include/obj_models_helpers.h"
 #include "include/particle_system.h"
 #include "include/pbf_solver.h"
 #include "include/pbf_solver_gpu.h"
@@ -37,8 +37,9 @@
 // TODO(k-ye): These global variables should be cleaned up
 
 // Window dimensions
-const GLuint WIDTH = 1024, HEIGHT = 768;
-// const GLuint WIDTH = 400, HEIGHT = 300;
+// const GLuint WIDTH = 1024, HEIGHT = 768;
+const GLuint WIDTH = 768;
+const GLuint HEIGHT = 1280;
 
 float delta_time = 0.0f;
 glm::vec3 world_size_dim{0.0f};
@@ -138,6 +139,22 @@ int main() {
   Configure(config);
 
   InitParticles(config);
+  // Once loaded, |obj_models| should never change its size.
+  std::vector<pbf::ObjModel> obj_models =
+      pbf::LoadModelsFromConfigFile("Config/model_defs.txt");
+  {
+    float interval = config.Get<float>(pbf::PARTICLE_INTERVAL);
+    std::vector<pbf::point_t> obj_models_points =
+        pbf::FillPointsInObjModels(obj_models, world_size_dim, interval);
+    std::cout << "found " << obj_models_points.size() << " particles from the object models" << std::endl;
+    for (const auto& pt : obj_models_points) {
+        glm::vec3 vel;
+        vel.x = 0.0f; // pbf::GenRandom(-0.05f, 0.05f);
+        vel.y = pbf::GenRandom(-0.05f, 0.05f);
+        vel.z = 0.0f; // pbf::GenRandom(-0.05f, 0.05f);
+        ps.Add(pt, vel);;
+    }
+  }
 
   InitDependencies();
 
@@ -160,17 +177,15 @@ int main() {
   glfwGetFramebufferSize(window, &width, &height);
   glViewport(0, 0, width, height);
 
-  // Once loaded, |obj_models| should never change its size.
-  std::vector<pbf::ObjModel> obj_models =
-      pbf::LoadModelsFromConfigFile("Config/model_defs.txt");
   render.InitShaders("Shaders/vertex.vert", "Shaders/fragment.frag");
   render.InitSpriteShaders("Shaders/sprite_vertex.vert",
                            "Shaders/sprite_fragment.frag");
   for (const pbf::ObjModel &obj_model : obj_models) {
-    render.RegisterObjModel(&obj_model);
+    // render.RegisterObjModel(&obj_model);
   }
   render.InitScene();
 
+  is_paused = true;
   // Game loop
   while (!glfwWindowShouldClose(window)) {
     // Check if any events have been activiated (key pressed, mouse moved etc.)
@@ -178,7 +193,7 @@ int main() {
     glfwPollEvents();
 
     if (!is_paused) {
-      boundary_driver.Update(delta_time);
+      // boundary_driver.Update(delta_time);
       solver.Update(delta_time);
     }
     render.Render();
@@ -304,14 +319,16 @@ void InitParticles(const pbf::Config &config) {
     return (world_sz_dim - ((num_dim - 1) * interval)) * 0.5f;
   };
 
-  float margin_y = ComputeMargin(world_size_y, num_y);
+  // float margin_y = ComputeMargin(world_size_y, num_y);
+  float margin_y = interval * 0.5;
   float margin_z = ComputeMargin(world_size_z, num_z);
   float margin_x = ComputeMargin(world_size_x, num_x);
   for (unsigned y = 0; y < num_y; ++y) {
     for (unsigned z = 0; z < num_z; ++z) {
       for (unsigned x = 0; x < num_x; ++x) {
         float xf = margin_x + x * interval;
-        float yf = world_size_y - margin_y - y * interval;
+        // float yf = world_size_y - margin_y - y * interval;
+        float yf = margin_y + y * interval;
         float zf = margin_z + z * interval;
         const glm::vec3 pos{xf, yf, zf};
 

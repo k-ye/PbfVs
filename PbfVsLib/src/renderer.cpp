@@ -280,15 +280,15 @@ void SceneRenderer::Render() {
     for (size_t i = 0; i < boundary_records_.size(); ++i) {
       UpdateBoundaryAt(i);
     }
-    glBindBuffer(GL_ARRAY_BUFFER, boundaries_vbo_);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * boundary_vertices_.size(),
-                 boundary_vertices_.data(), GL_STREAM_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    // glBindBuffer(GL_ARRAY_BUFFER, boundaries_vbo_);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * boundary_vertices_.size(),
+    //              boundary_vertices_.data(), GL_STREAM_DRAW);
+    // glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    glBindVertexArray(boundaries_vao_);
-    glDrawElements(GL_TRIANGLES, (int)boundary_indices_.size(), GL_UNSIGNED_INT,
-                   0);
-    glBindVertexArray(0);
+    // glBindVertexArray(boundaries_vao_);
+    // glDrawElements(GL_TRIANGLES, (int)boundary_indices_.size(), GL_UNSIGNED_INT,
+    //                0);
+    // glBindVertexArray(0);
 
     // draw the xyz frame
     glBindVertexArray(frame_vao_);
