@@ -44,6 +44,7 @@ int ReadFileByLine(const std::string &filepath,
   fs.close();
   return 0;
 }
+
 int ReadFileByLine(const std::string &filepath,
                    const std::function<void(const std::string &)> &f) {
   return ReadFileByLine(filepath,
