@@ -41,6 +41,7 @@ point_t FindUpperBound(const ObjModel &obj_model) {
   }
   return ub;
 }
+
 void PlaceObjModel(point_t o, float scale, ObjModel *obj_model) {
   // Lower left
   point_t ll = FindLowerBound(*obj_model);
@@ -88,22 +89,136 @@ size_t ToFlatGridIndex(int x, int y, int z, const glm::tvec3<int> &grid_sz) {
   return idx;
 }
 
-void FillBitmask(const ObjModel &obj_model, const glm::tvec3<int> &grid_sz,
-                 float interval, GridBitmask *flat_grid_bm) {
-  const auto &vertices = obj_model.vertices;
-  const vec_t z_dir = {0.0f, 0.0f, 1.0f};
-  const float half_interval = interval * 0.5f;
+enum class CheckDirection { X, Y, Z };
 
-  auto PosToGrid = [=](float pos) -> int {
-    return (int)((pos - half_interval) / interval);
+vec_t GetCheckDirection(CheckDirection flag) {
+    switch (flag) {
+    case CheckDirection::X:
+        return{ 1.0f, 0.0f, 0.0f };
+    case CheckDirection::Y:
+        return{ 0.0f, 1.0f, 0.0f };
+    case CheckDirection::Z:
+        return{ 0.0f, 0.0f, 1.0f };
+    }
+    return vec_t(0.0f);
+}
+
+std::function<int(float)> MakePosToGrid(float interval) {
+  return [=](float pos) -> int {
+    return (int)((pos - (interval * 0.5f)) / interval);
   };
-  auto GridToPos = [=](int grid) -> float {
-    return (float)(grid * interval + half_interval);
+}
+
+std::function<float(int)> MakeGridToPos(float interval) {
+  return [=](int grid) -> float {
+    return (float)(grid * interval + (interval * 0.5f));
   };
-  auto IsInGrid = [&](int x, int y, int z) -> bool {
-    return ((0 <= x) && (0 <= y) && (0 <= z) && (x < grid_sz.x) &&
-            (y < grid_sz.y) && (z < grid_sz.z));
+}
+
+std::function<bool(const glm::tvec3<int>& xyz)> MakeIsInGrid(const glm::tvec3<int>& grid_sz) {
+  return [=](const glm::tvec3<int>& xyz) -> bool {
+    return ((0 <= xyz.x) && (xyz.x < grid_sz.x) && (0 <= xyz.y) && (xyz.y < grid_sz.y) && (0 <= xyz.z) && (xyz.z < grid_sz.z));
   };
+}
+
+void FillBitmaskByDir(const point_t& v1, const point_t& v2, const point_t& v3, const glm::tvec3<int>& grid_sz, float interval, CheckDirection check_dir_flag, GridBitmask* flat_grid_bm) {
+    auto SliceCoordByDir = [=](const point_t& p) -> vec2 {
+      switch (check_dir_flag) {
+        case CheckDirection::X:
+          return {p.y, p.z};
+        case CheckDirection::Y:
+          return {p.x, p.z};
+        case CheckDirection::Z:
+          return {p.x, p.y};
+      }
+      // Should check fail.
+      return vec2(0.0f);
+    };
+
+    auto GetCheckDirComp = [=](const point_t& p) -> float {
+      switch (check_dir_flag) {
+        case CheckDirection::X:
+          return p.x;
+        case CheckDirection::Y:
+          return p.y;
+        case CheckDirection::Z:
+          return p.z;
+      }
+      // Should check fail.
+      return 0.0f;
+    };
+
+    auto CheckDirToAbsGridXyz = [=](int c1, int c2, int c3) -> glm::tvec3<int> {
+      switch (check_dir_flag) {
+        case CheckDirection::X:
+          return { c3, c1, c2 };
+        case CheckDirection::Y:
+          return { c1, c3, c2 };
+        case CheckDirection::Z:
+          return { c1, c2, c3 };
+      }
+      // Should check fail.
+      return { 0, 0, 0 };
+    };
+
+    auto PosToGrid = MakePosToGrid(interval);
+    auto GridToPos = MakeGridToPos(interval);
+    auto IsInGrid = MakeIsInGrid(grid_sz);
+
+    const vec2 a = SliceCoordByDir(v1);
+    const vec2 b = SliceCoordByDir(v2);
+    const vec2 c = SliceCoordByDir(v3);
+    // Numerical precision issue, out of boundary issue. Ignore them...
+    // Find the AABB of the XY-projected triangle.
+    const float min_c1 = std::min(a.x, std::min(b.x, c.x));
+    const float max_c1 = std::max(a.x, std::max(b.x, c.x));
+    const float min_c2 = std::min(a.y, std::min(b.y, c.y));
+    const float max_c2 = std::max(a.y, std::max(b.y, c.y));
+
+    int grid_c1_begin = PosToGrid(min_c1);
+    if (GridToPos(grid_c1_begin) < min_c1 - kFloatEpsilon) {
+      grid_c1_begin += 1;
+    }
+    int grid_c2_begin = PosToGrid(min_c2);
+    if (GridToPos(grid_c2_begin) < min_c2 - kFloatEpsilon) {
+      grid_c2_begin += 1;
+    }
+
+    glm::tvec2<int> grid_c12 = {grid_c1_begin, grid_c2_begin};
+    vec2 cur_c12(0.0f);
+    cur_c12.x = GridToPos(grid_c12.x);
+
+    const vec_t v12 = v2 - v1;
+    const vec_t v13 = v3 - v1;
+
+    while (cur_c12.x < max_c1) {
+      grid_c12.y = grid_c2_begin;
+      cur_c12.y = GridToPos(grid_c12.y);
+      while (cur_c12.y < max_c2) {
+        vec2 uv(0.0f);
+        if (IsInTriangle(a, b, c, cur_c12, &uv)) {
+          point_t pt = v1 + v12 * uv.x + v13 * uv.y;
+          // int grid_z = PosToGrid(pt.z);
+          const int grid_c3 = PosToGrid(GetCheckDirComp(pt));
+          const auto grid_xyz = CheckDirToAbsGridXyz(grid_c12.x, grid_c12.y, grid_c3);
+          if (IsInGrid(grid_xyz)) {
+            size_t idx = ToFlatGridIndex(grid_xyz.x, grid_xyz.y, grid_xyz.z, grid_sz);
+            (*flat_grid_bm)[idx] += 1;
+          }
+        }
+
+        grid_c12.y += 1;
+        cur_c12.y += interval;
+      }
+      cur_c12.x += 1;
+      cur_c12.x += interval;
+    }
+}
+
+void FillBitmask(const ObjModel &obj_model, const glm::tvec3<int> &grid_sz,
+                 float interval, CheckDirection check_dir_flag, GridBitmask *flat_grid_bm) {
+  const auto &vertices = obj_model.vertices;
+  const vec_t check_dir = GetCheckDirection(check_dir_flag);
 
   for (const auto &f : obj_model.faces) {
     point_t v1 = vertices[f.x];
@@ -113,52 +228,11 @@ void FillBitmask(const ObjModel &obj_model, const glm::tvec3<int> &grid_sz,
     vec_t v12 = v2 - v1;
     vec_t v13 = v3 - v1;
     vec_t plane_norm = glm::cross(v12, v13);
-    if (glm::abs(glm::dot(z_dir, plane_norm)) <= kFloatEpsilon) {
-      // the z axis is in the surface, pass this face.
+    if (glm::abs(glm::dot(check_dir, plane_norm)) <= kFloatEpsilon) {
+      // |check_dir| is in the surface, pass this face.
       continue;
     }
-    vec2 a = {v1.x, v1.y};
-    vec2 b = {v2.x, v2.y};
-    vec2 c = {v3.x, v3.y};
-    // Numerical precision issue, out of boundary issue. Ignore them...
-    // Find the AABB of the XY-projected triangle.
-    float min_x = std::min(a.x, std::min(b.x, c.x));
-    float min_y = std::min(a.y, std::min(b.y, c.y));
-    float max_x = std::max(a.x, std::max(b.x, c.x));
-    float max_y = std::max(a.y, std::max(b.y, c.y));
-
-    int grid_x_begin = PosToGrid(min_x);
-    if (GridToPos(grid_x_begin) < min_x - kFloatEpsilon) {
-      grid_x_begin += 1;
-    }
-    int grid_y_begin = PosToGrid(min_y);
-    if (GridToPos(grid_y_begin) < min_y - kFloatEpsilon) {
-      grid_y_begin += 1;
-    }
-
-    glm::tvec2<int> grid_xy = {grid_x_begin, grid_y_begin};
-    vec2 cur_xy(0.0f);
-    cur_xy.x = GridToPos(grid_xy.x);
-    while (cur_xy.x < max_x) {
-      grid_xy.y = grid_y_begin;
-      cur_xy.y = GridToPos(grid_xy.y);
-      while (cur_xy.y < max_y) {
-        vec2 uv(0.0f);
-        if (IsInTriangle(a, b, c, cur_xy, &uv)) {
-          point_t pt = v1 + v12 * uv.x + v13 * uv.y;
-          int grid_z = PosToGrid(pt.z);
-          if (IsInGrid(grid_xy.x, grid_xy.y, grid_z)) {
-            size_t idx = ToFlatGridIndex(grid_xy.x, grid_xy.y, grid_z, grid_sz);
-            (*flat_grid_bm)[idx] += 1;
-          }
-        }
-
-        grid_xy.y += 1;
-        cur_xy.y += interval;
-      }
-      cur_xy.x += 1;
-      cur_xy.x += interval;
-    }
+    FillBitmaskByDir(v1, v2, v3, grid_sz, interval, check_dir_flag, flat_grid_bm);
   }
 }
 
@@ -197,27 +271,38 @@ FillPointsInObjModels(const std::vector<ObjModel> &obj_models,
   grid_sz.y = (int)(world_sz.y / interval) - 1;
   grid_sz.z = (int)(world_sz.z / interval) - 1;
 
-  GridBitmask flat_grid_bm(grid_sz.x * grid_sz.y * grid_sz.z, 0);
+  GridBitmask flat_grid_bm_x(grid_sz.x * grid_sz.y * grid_sz.z, 0);
+  GridBitmask flat_grid_bm_y(grid_sz.x * grid_sz.y * grid_sz.z, 0);
+  GridBitmask flat_grid_bm_z(grid_sz.x * grid_sz.y * grid_sz.z, 0);
   for (const ObjModel &obj_model : obj_models) {
-    FillBitmask(obj_model, grid_sz, interval, &flat_grid_bm);
+    FillBitmask(obj_model, grid_sz, interval, CheckDirection::X, &flat_grid_bm_x);
+    FillBitmask(obj_model, grid_sz, interval, CheckDirection::Y, &flat_grid_bm_y);
+    FillBitmask(obj_model, grid_sz, interval, CheckDirection::Z, &flat_grid_bm_z);
   }
 
   for (int x = 0; x < grid_sz.x; ++x) {
     for (int y = 0; y < grid_sz.y; ++y) {
-      for (int z = 1; z < grid_sz.z; ++z) {
-        size_t front_idx = ToFlatGridIndex(x, y, z - 1, grid_sz);
-        size_t cur_idx = ToFlatGridIndex(x, y, z, grid_sz);
-        flat_grid_bm[cur_idx] += flat_grid_bm[front_idx];
+      for (int z = 0; z < grid_sz.z; ++z) {
+          if (x > 0) {
+              size_t front_idx = ToFlatGridIndex(x - 1, y, z, grid_sz);
+              size_t cur_idx = ToFlatGridIndex(x, y, z, grid_sz);
+              flat_grid_bm_x[cur_idx] += flat_grid_bm_x[front_idx];
+          }
+          if (y > 0) {
+              size_t front_idx = ToFlatGridIndex(x, y - 1, z, grid_sz);
+              size_t cur_idx = ToFlatGridIndex(x, y, z, grid_sz);
+              flat_grid_bm_y[cur_idx] += flat_grid_bm_y[front_idx];
+          }
+          if (z > 0) {
+              size_t front_idx = ToFlatGridIndex(x, y, z - 1, grid_sz);
+              size_t cur_idx = ToFlatGridIndex(x, y, z, grid_sz);
+              flat_grid_bm_z[cur_idx] += flat_grid_bm_z[front_idx];
+          }
       }
     }
   }
 
-  // TODO(k-ye): duplicate function;
-  float half_interval = interval * 0.5f;
-  auto GridToPos = [=](int grid) -> float {
-    return (float)(grid * interval + half_interval);
-  };
-
+  auto GridToPos = MakeGridToPos(interval);
   std::vector<AABB> obj_aabbs;
   for (const auto &obj_model : obj_models) {
     AABB aabb(FindLowerBound(obj_model), FindUpperBound(obj_model));
@@ -229,7 +314,7 @@ FillPointsInObjModels(const std::vector<ObjModel> &obj_models,
     for (int y = 0; y < grid_sz.y; ++y) {
       for (int z = 0; z < grid_sz.z; ++z) {
         size_t idx = ToFlatGridIndex(x, y, z, grid_sz);
-        if (flat_grid_bm[idx] & 1) {
+        if ((flat_grid_bm_x[idx] & 1) && (flat_grid_bm_y[idx] & 1) && (flat_grid_bm_z[idx] & 1)) {
           point_t pt;
           pt.x = GridToPos(x);
           pt.y = GridToPos(y);
