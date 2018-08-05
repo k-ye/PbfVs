@@ -89,20 +89,6 @@ size_t ToFlatGridIndex(int x, int y, int z, const glm::tvec3<int> &grid_sz) {
   return idx;
 }
 
-enum class CheckDirection { X, Y, Z };
-
-vec_t GetCheckDirection(CheckDirection flag) {
-    switch (flag) {
-    case CheckDirection::X:
-        return{ 1.0f, 0.0f, 0.0f };
-    case CheckDirection::Y:
-        return{ 0.0f, 1.0f, 0.0f };
-    case CheckDirection::Z:
-        return{ 0.0f, 0.0f, 1.0f };
-    }
-    return vec_t(0.0f);
-}
-
 std::function<int(float)> MakePosToGrid(float interval) {
   return [=](float pos) -> int {
     return (int)((pos - (interval * 0.5f)) / interval);
@@ -115,110 +101,142 @@ std::function<float(int)> MakeGridToPos(float interval) {
   };
 }
 
-std::function<bool(const glm::tvec3<int>& xyz)> MakeIsInGrid(const glm::tvec3<int>& grid_sz) {
-  return [=](const glm::tvec3<int>& xyz) -> bool {
-    return ((0 <= xyz.x) && (xyz.x < grid_sz.x) && (0 <= xyz.y) && (xyz.y < grid_sz.y) && (0 <= xyz.z) && (xyz.z < grid_sz.z));
+std::function<bool(const glm::tvec3<int> &xyz)>
+MakeIsInGrid(const glm::tvec3<int> &grid_sz) {
+  return [=](const glm::tvec3<int> &xyz) -> bool {
+    return ((0 <= xyz.x) && (xyz.x < grid_sz.x) && (0 <= xyz.y) &&
+            (xyz.y < grid_sz.y) && (0 <= xyz.z) && (xyz.z < grid_sz.z));
   };
 }
 
-void FillBitmaskByDir(const point_t& v1, const point_t& v2, const point_t& v3, const glm::tvec3<int>& grid_sz, float interval, CheckDirection check_dir_flag, GridBitmask* flat_grid_bm) {
-    auto SliceCoordByDir = [=](const point_t& p) -> vec2 {
-      switch (check_dir_flag) {
-        case CheckDirection::X:
-          return {p.y, p.z};
-        case CheckDirection::Y:
-          return {p.x, p.z};
-        case CheckDirection::Z:
-          return {p.x, p.y};
-      }
-      // Should check fail.
-      return vec2(0.0f);
-    };
+enum class CheckDirection { X, Y, Z };
 
-    auto GetCheckDirComp = [=](const point_t& p) -> float {
-      switch (check_dir_flag) {
-        case CheckDirection::X:
-          return p.x;
-        case CheckDirection::Y:
-          return p.y;
-        case CheckDirection::Z:
-          return p.z;
-      }
-      // Should check fail.
-      return 0.0f;
-    };
+class CheckDirHelper {
+public:
+  CheckDirHelper(CheckDirection flag) : flag_(flag) {}
 
-    auto CheckDirToAbsGridXyz = [=](int c1, int c2, int c3) -> glm::tvec3<int> {
-      switch (check_dir_flag) {
-        case CheckDirection::X:
-          return { c3, c1, c2 };
-        case CheckDirection::Y:
-          return { c1, c3, c2 };
-        case CheckDirection::Z:
-          return { c1, c2, c3 };
-      }
-      // Should check fail.
-      return { 0, 0, 0 };
-    };
-
-    auto PosToGrid = MakePosToGrid(interval);
-    auto GridToPos = MakeGridToPos(interval);
-    auto IsInGrid = MakeIsInGrid(grid_sz);
-
-    const vec2 a = SliceCoordByDir(v1);
-    const vec2 b = SliceCoordByDir(v2);
-    const vec2 c = SliceCoordByDir(v3);
-    // Numerical precision issue, out of boundary issue. Ignore them...
-    // Find the AABB of the XY-projected triangle.
-    const float min_c1 = std::min(a.x, std::min(b.x, c.x));
-    const float max_c1 = std::max(a.x, std::max(b.x, c.x));
-    const float min_c2 = std::min(a.y, std::min(b.y, c.y));
-    const float max_c2 = std::max(a.y, std::max(b.y, c.y));
-
-    int grid_c1_begin = PosToGrid(min_c1);
-    if (GridToPos(grid_c1_begin) < min_c1 - kFloatEpsilon) {
-      grid_c1_begin += 1;
+  vec_t GetCheckDirection() const {
+    switch (flag_) {
+    case CheckDirection::X:
+      return {1.0f, 0.0f, 0.0f};
+    case CheckDirection::Y:
+      return {0.0f, 1.0f, 0.0f};
+    case CheckDirection::Z:
+      return {0.0f, 0.0f, 1.0f};
     }
-    int grid_c2_begin = PosToGrid(min_c2);
-    if (GridToPos(grid_c2_begin) < min_c2 - kFloatEpsilon) {
-      grid_c2_begin += 1;
+    // Should check fail.
+    return vec_t(0.0f);
+  }
+
+  vec2 SliceCoordinate(const point_t &p) const {
+    switch (flag_) {
+    case CheckDirection::X:
+      return {p.y, p.z};
+    case CheckDirection::Y:
+      return {p.x, p.z};
+    case CheckDirection::Z:
+      return {p.x, p.y};
     }
+    // Should check fail.
+    return vec2(0.0f);
+  }
 
-    glm::tvec2<int> grid_c12 = {grid_c1_begin, grid_c2_begin};
-    vec2 cur_c12(0.0f);
-    cur_c12.x = GridToPos(grid_c12.x);
+  float GetCheckedComponent(const point_t &p) const {
+    switch (flag_) {
+    case CheckDirection::X:
+      return p.x;
+    case CheckDirection::Y:
+      return p.y;
+    case CheckDirection::Z:
+      return p.z;
+    }
+    // Should check fail.
+    return 0.0f;
+  }
 
-    const vec_t v12 = v2 - v1;
-    const vec_t v13 = v3 - v1;
+  glm::tvec3<int> MapToAbsGridXyz(int c1, int c2, int c3) const {
+    switch (flag_) {
+    case CheckDirection::X:
+      return {c3, c1, c2};
+    case CheckDirection::Y:
+      return {c1, c3, c2};
+    case CheckDirection::Z:
+      return {c1, c2, c3};
+    }
+    // Should check fail.
+    return {0, 0, 0};
+  };
 
-    while (cur_c12.x < max_c1) {
-      grid_c12.y = grid_c2_begin;
-      cur_c12.y = GridToPos(grid_c12.y);
-      while (cur_c12.y < max_c2) {
-        vec2 uv(0.0f);
-        if (IsInTriangle(a, b, c, cur_c12, &uv)) {
-          point_t pt = v1 + v12 * uv.x + v13 * uv.y;
-          // int grid_z = PosToGrid(pt.z);
-          const int grid_c3 = PosToGrid(GetCheckDirComp(pt));
-          const auto grid_xyz = CheckDirToAbsGridXyz(grid_c12.x, grid_c12.y, grid_c3);
-          if (IsInGrid(grid_xyz)) {
-            size_t idx = ToFlatGridIndex(grid_xyz.x, grid_xyz.y, grid_xyz.z, grid_sz);
-            (*flat_grid_bm)[idx] += 1;
-          }
+private:
+  const CheckDirection flag_;
+};
+
+void FillBitmaskByDir(const point_t &v1, const point_t &v2, const point_t &v3,
+                      const glm::tvec3<int> &grid_sz, float interval,
+                      const CheckDirHelper &check_dir_helper,
+                      GridBitmask *flat_grid_bm) {
+  auto PosToGrid = MakePosToGrid(interval);
+  auto GridToPos = MakeGridToPos(interval);
+  auto IsInGrid = MakeIsInGrid(grid_sz);
+
+  const vec2 a = check_dir_helper.SliceCoordinate(v1);
+  const vec2 b = check_dir_helper.SliceCoordinate(v2);
+  const vec2 c = check_dir_helper.SliceCoordinate(v3);
+  // Numerical precision issue, out of boundary issue. Ignore them...
+  // Find the AABB of the projected triangle.
+  const float min_c1 = std::min(a.x, std::min(b.x, c.x));
+  const float max_c1 = std::max(a.x, std::max(b.x, c.x));
+  const float min_c2 = std::min(a.y, std::min(b.y, c.y));
+  const float max_c2 = std::max(a.y, std::max(b.y, c.y));
+
+  int grid_c1_begin = PosToGrid(min_c1);
+  if (GridToPos(grid_c1_begin) < min_c1 - kFloatEpsilon) {
+    grid_c1_begin += 1;
+  }
+  int grid_c2_begin = PosToGrid(min_c2);
+  if (GridToPos(grid_c2_begin) < min_c2 - kFloatEpsilon) {
+    grid_c2_begin += 1;
+  }
+
+  glm::tvec2<int> grid_c12 = {grid_c1_begin, grid_c2_begin};
+  vec2 cur_c12(0.0f);
+  cur_c12.x = GridToPos(grid_c12.x);
+
+  const vec_t v12 = v2 - v1;
+  const vec_t v13 = v3 - v1;
+
+  while (cur_c12.x < max_c1) {
+    grid_c12.y = grid_c2_begin;
+    cur_c12.y = GridToPos(grid_c12.y);
+    while (cur_c12.y < max_c2) {
+      vec2 uv(0.0f);
+      if (IsInTriangle(a, b, c, cur_c12, &uv)) {
+        point_t pt = v1 + v12 * uv.x + v13 * uv.y;
+        // int grid_z = PosToGrid(pt.z);
+        const int grid_c3 = PosToGrid(check_dir_helper.GetCheckedComponent(pt));
+        const auto grid_xyz =
+            check_dir_helper.MapToAbsGridXyz(grid_c12.x, grid_c12.y, grid_c3);
+        if (IsInGrid(grid_xyz)) {
+          size_t idx =
+              ToFlatGridIndex(grid_xyz.x, grid_xyz.y, grid_xyz.z, grid_sz);
+          (*flat_grid_bm)[idx] += 1;
         }
-
-        grid_c12.y += 1;
-        cur_c12.y += interval;
       }
-      cur_c12.x += 1;
-      cur_c12.x += interval;
+
+      grid_c12.y += 1;
+      cur_c12.y += interval;
     }
+    cur_c12.x += 1;
+    cur_c12.x += interval;
+  }
 }
 
 void FillBitmask(const ObjModel &obj_model, const glm::tvec3<int> &grid_sz,
-                 float interval, CheckDirection check_dir_flag, GridBitmask *flat_grid_bm) {
+                 float interval, CheckDirection check_dir_flag,
+                 GridBitmask *flat_grid_bm) {
+  CheckDirHelper check_dir_helper(check_dir_flag);
   const auto &vertices = obj_model.vertices;
-  const vec_t check_dir = GetCheckDirection(check_dir_flag);
+  const vec_t check_dir = check_dir_helper.GetCheckDirection();
 
   for (const auto &f : obj_model.faces) {
     point_t v1 = vertices[f.x];
@@ -232,7 +250,8 @@ void FillBitmask(const ObjModel &obj_model, const glm::tvec3<int> &grid_sz,
       // |check_dir| is in the surface, pass this face.
       continue;
     }
-    FillBitmaskByDir(v1, v2, v3, grid_sz, interval, check_dir_flag, flat_grid_bm);
+    FillBitmaskByDir(v1, v2, v3, grid_sz, interval, check_dir_helper,
+                     flat_grid_bm);
   }
 }
 
@@ -275,29 +294,32 @@ FillPointsInObjModels(const std::vector<ObjModel> &obj_models,
   GridBitmask flat_grid_bm_y(grid_sz.x * grid_sz.y * grid_sz.z, 0);
   GridBitmask flat_grid_bm_z(grid_sz.x * grid_sz.y * grid_sz.z, 0);
   for (const ObjModel &obj_model : obj_models) {
-    FillBitmask(obj_model, grid_sz, interval, CheckDirection::X, &flat_grid_bm_x);
-    FillBitmask(obj_model, grid_sz, interval, CheckDirection::Y, &flat_grid_bm_y);
-    FillBitmask(obj_model, grid_sz, interval, CheckDirection::Z, &flat_grid_bm_z);
+    FillBitmask(obj_model, grid_sz, interval, CheckDirection::X,
+                &flat_grid_bm_x);
+    FillBitmask(obj_model, grid_sz, interval, CheckDirection::Y,
+                &flat_grid_bm_y);
+    FillBitmask(obj_model, grid_sz, interval, CheckDirection::Z,
+                &flat_grid_bm_z);
   }
 
   for (int x = 0; x < grid_sz.x; ++x) {
     for (int y = 0; y < grid_sz.y; ++y) {
       for (int z = 0; z < grid_sz.z; ++z) {
-          if (x > 0) {
-              size_t front_idx = ToFlatGridIndex(x - 1, y, z, grid_sz);
-              size_t cur_idx = ToFlatGridIndex(x, y, z, grid_sz);
-              flat_grid_bm_x[cur_idx] += flat_grid_bm_x[front_idx];
-          }
-          if (y > 0) {
-              size_t front_idx = ToFlatGridIndex(x, y - 1, z, grid_sz);
-              size_t cur_idx = ToFlatGridIndex(x, y, z, grid_sz);
-              flat_grid_bm_y[cur_idx] += flat_grid_bm_y[front_idx];
-          }
-          if (z > 0) {
-              size_t front_idx = ToFlatGridIndex(x, y, z - 1, grid_sz);
-              size_t cur_idx = ToFlatGridIndex(x, y, z, grid_sz);
-              flat_grid_bm_z[cur_idx] += flat_grid_bm_z[front_idx];
-          }
+        if (x > 0) {
+          size_t front_idx = ToFlatGridIndex(x - 1, y, z, grid_sz);
+          size_t cur_idx = ToFlatGridIndex(x, y, z, grid_sz);
+          flat_grid_bm_x[cur_idx] += flat_grid_bm_x[front_idx];
+        }
+        if (y > 0) {
+          size_t front_idx = ToFlatGridIndex(x, y - 1, z, grid_sz);
+          size_t cur_idx = ToFlatGridIndex(x, y, z, grid_sz);
+          flat_grid_bm_y[cur_idx] += flat_grid_bm_y[front_idx];
+        }
+        if (z > 0) {
+          size_t front_idx = ToFlatGridIndex(x, y, z - 1, grid_sz);
+          size_t cur_idx = ToFlatGridIndex(x, y, z, grid_sz);
+          flat_grid_bm_z[cur_idx] += flat_grid_bm_z[front_idx];
+        }
       }
     }
   }
@@ -314,7 +336,8 @@ FillPointsInObjModels(const std::vector<ObjModel> &obj_models,
     for (int y = 0; y < grid_sz.y; ++y) {
       for (int z = 0; z < grid_sz.z; ++z) {
         size_t idx = ToFlatGridIndex(x, y, z, grid_sz);
-        if ((flat_grid_bm_x[idx] & 1) && (flat_grid_bm_y[idx] & 1) && (flat_grid_bm_z[idx] & 1)) {
+        if ((flat_grid_bm_x[idx] & 1) && (flat_grid_bm_y[idx] & 1) &&
+            (flat_grid_bm_z[idx] & 1)) {
           point_t pt;
           pt.x = GridToPos(x);
           pt.y = GridToPos(y);
